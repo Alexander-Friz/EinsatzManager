@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../models/einsatz_neu.dart';
 import '../services/einsatz_service_neu.dart';
 import 'einsatz_tabs/daten_tab.dart';
 import 'einsatz_tabs/fahrzeuge_tab.dart';
 import 'einsatz_tabs/agt_tab.dart';
+import 'einsatz_tabs/verlauf_tab.dart';
 
 class AktiveEinsatzScreen extends StatefulWidget {
   final Einsatz einsatz;
@@ -20,16 +20,47 @@ class _AktiveEinsatzScreenState extends State<AktiveEinsatzScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
   late Einsatz _currentEinsatz;
+  
+  // AGT-State persistent halten
+  late Map<String, dynamic> _agtState;
 
   @override
   void initState() {
     super.initState();
     _currentEinsatz = widget.einsatz;
     _tabController = TabController(length: 4, vsync: this);
+    
+    // Initialisiere AGT-State mit korrekten Types
+    _agtState = {
+      'fahrzeugAtemschutz': <String, bool>{},
+      'truppTimers': <String, dynamic>{},
+    };
+    
+    // Initialisiere Atemschutz-Status
+    final atemschutzMap = _agtState['fahrzeugAtemschutz'] as Map<String, bool>;
+    for (var fahrzeug in _currentEinsatz.fahrzeuge) {
+      atemschutzMap[fahrzeug.id] = fahrzeug.atemschutzEinsatz;
+    }
+    
+    // Höre auf EinsatzService Updates
+    context.read<EinsatzService>().addListener(_onEinsatzServiceChanged);
+  }
+  
+  void _onEinsatzServiceChanged() {
+    // Wenn der Einsatz im Service aktualisiert wurde, aktualisiere lokale Referenz
+    final einsatzService = context.read<EinsatzService>();
+    final updatedEinsatz = einsatzService.getEinsatzById(_currentEinsatz.id);
+    if (updatedEinsatz != null && mounted) {
+      setState(() {
+        _currentEinsatz = updatedEinsatz;
+      });
+    }
   }
 
   @override
   void dispose() {
+    // Cleanup Listener
+    context.read<EinsatzService>().removeListener(_onEinsatzServiceChanged);
     _tabController.dispose();
     super.dispose();
   }
@@ -79,62 +110,20 @@ class _AktiveEinsatzScreenState extends State<AktiveEinsatzScreen>
           ),
 
           // Tab 3: AGT (Atemschutzeinsatz)
-          AgtTab(einsatz: _currentEinsatz),
+          AgtTab(
+            key: const PageStorageKey('agt_tab'),
+            einsatz: _currentEinsatz,
+            agtState: _agtState,
+          ),
 
           // Tab 4: Verlauf
-          _buildVerlaufTab(),
+          VerlaufTab(einsatz: _currentEinsatz),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _endEinsatz,
         backgroundColor: Colors.green,
         child: const Icon(Icons.check),
-      ),
-    );
-  }
-
-  Widget _buildVerlaufTab() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildVerlaufItem(
-              'Einsatz erstellt',
-              DateFormat('dd.MM.yyyy HH:mm:ss').format(_currentEinsatz.erstelltAm),
-              Icons.create,
-            ),
-            _buildVerlaufItem(
-              'Einsatzart: ${_currentEinsatz.einsatzart}',
-              '',
-              Icons.assignment,
-            ),
-            _buildVerlaufItem(
-              'Adresse: ${_currentEinsatz.adresse}',
-              '',
-              Icons.location_on,
-            ),
-            _buildVerlaufItem(
-              'Fahrzeuge eingeplant',
-              '${_currentEinsatz.fahrzeuge.length} Fahrzeug(e)',
-              Icons.fire_truck,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVerlaufItem(String title, String subtitle, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Card(
-        child: ListTile(
-          leading: Icon(icon, color: Colors.red[900]),
-          title: Text(title),
-          subtitle: subtitle.isNotEmpty ? Text(subtitle) : null,
-        ),
       ),
     );
   }
@@ -152,12 +141,22 @@ class _AktiveEinsatzScreenState extends State<AktiveEinsatzScreen>
           ),
           TextButton(
             onPressed: () {
+              // Speichere die aktuelle Einsatz-Version
               context.read<EinsatzService>().updateEinsatz(_currentEinsatz);
-              Navigator.pop(context);
-              Navigator.pop(context);
+              
+              // Zeige Bestätigungsmeldung
+              Navigator.pop(context); // Schließe Dialog
+              
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Einsatz beendet und gespeichert')),
+                const SnackBar(
+                  content: Text('Einsatz beendet und gespeichert ✓'),
+                  duration: Duration(seconds: 3),
+                  backgroundColor: Colors.green,
+                ),
               );
+              
+              // Navigiere zur Startseite (springe alle Screens über)
+              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
             },
             child: const Text('Beenden', style: TextStyle(color: Colors.red)),
           ),

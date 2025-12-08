@@ -49,6 +49,10 @@ dependencies:
   
   # GPS & Location
   geolocator: ^9.0.2
+  
+  # PDF Generation
+  pdf: ^3.10.0
+  printing: ^5.11.0
 
 dev_dependencies:
   flutter_test:

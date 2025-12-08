@@ -18,6 +18,43 @@ const List<String> vordefinierteEinsatzarten = [
   'Sonstiges',
 ];
 
+// Atemschutz-Eintrag für Protokollierung
+class AtemschutzEintrag {
+  final String fahrzeugId;
+  final String fahrzeugName;
+  final String truppName; // "Angriffstrupp" oder "Wassertrupp"
+  final DateTime zeitpunkt;
+  final String ereignis; // "START", "20MIN_ALARM", "10MIN_ALARM", "STOP"
+  final int? druck; // in bar
+
+  AtemschutzEintrag({
+    required this.fahrzeugId,
+    required this.fahrzeugName,
+    required this.truppName,
+    required this.zeitpunkt,
+    required this.ereignis,
+    this.druck,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'fahrzeugId': fahrzeugId,
+    'fahrzeugName': fahrzeugName,
+    'truppName': truppName,
+    'zeitpunkt': zeitpunkt.toIso8601String(),
+    'ereignis': ereignis,
+    'druck': druck,
+  };
+
+  factory AtemschutzEintrag.fromJson(Map<String, dynamic> json) => AtemschutzEintrag(
+    fahrzeugId: json['fahrzeugId'] as String,
+    fahrzeugName: json['fahrzeugName'] as String,
+    truppName: json['truppName'] as String,
+    zeitpunkt: DateTime.parse(json['zeitpunkt'] as String),
+    ereignis: json['ereignis'] as String,
+    druck: json['druck'] as int?,
+  );
+}
+
 enum TruppPosition {
   gruppenfuehrer('Gruppenführer'),
   maschinist('Maschinist'),
@@ -130,6 +167,10 @@ class Einsatz {
   final double? longitude;
   final List<Fahrzeug> fahrzeuge;
   final DateTime erstelltAm;
+  final DateTime? beendetAm;
+  final String? notizen;
+  final Map<String, int>? atemschutzZeiten; // fahrzeugId -> verbrauchte Sekunden
+  final List<AtemschutzEintrag>? atemschutzProtokoll; // Detailliertes Protokoll
 
   Einsatz({
     required this.id,
@@ -141,6 +182,10 @@ class Einsatz {
     this.longitude,
     this.fahrzeuge = const [],
     required this.erstelltAm,
+    this.beendetAm,
+    this.notizen,
+    this.atemschutzZeiten,
+    this.atemschutzProtokoll,
   });
 
   Einsatz copyWith({
@@ -153,6 +198,10 @@ class Einsatz {
     double? longitude,
     List<Fahrzeug>? fahrzeuge,
     DateTime? erstelltAm,
+    DateTime? beendetAm,
+    String? notizen,
+    Map<String, int>? atemschutzZeiten,
+    List<AtemschutzEintrag>? atemschutzProtokoll,
   }) {
     return Einsatz(
       id: id ?? this.id,
@@ -164,6 +213,10 @@ class Einsatz {
       longitude: longitude ?? this.longitude,
       fahrzeuge: fahrzeuge ?? this.fahrzeuge,
       erstelltAm: erstelltAm ?? this.erstelltAm,
+      beendetAm: beendetAm ?? this.beendetAm,
+      notizen: notizen ?? this.notizen,
+      atemschutzZeiten: atemschutzZeiten ?? this.atemschutzZeiten,
+      atemschutzProtokoll: atemschutzProtokoll ?? this.atemschutzProtokoll,
     );
   }
 
@@ -177,6 +230,10 @@ class Einsatz {
     'longitude': longitude,
     'fahrzeuge': fahrzeuge.map((f) => f.toJson()).toList(),
     'erstelltAm': erstelltAm.toIso8601String(),
+    'beendetAm': beendetAm?.toIso8601String(),
+    'notizen': notizen,
+    'atemschutzZeiten': atemschutzZeiten,
+    'atemschutzProtokoll': atemschutzProtokoll?.map((e) => e.toJson()).toList(),
   };
 
   factory Einsatz.fromJson(Map<String, dynamic> json) {
@@ -197,6 +254,12 @@ class Einsatz {
           .toList() ??
           [],
       erstelltAm: DateTime.parse(json['erstelltAm'] as String),
+      beendetAm: json['beendetAm'] != null ? DateTime.parse(json['beendetAm'] as String) : null,
+      notizen: json['notizen'] as String?,
+      atemschutzZeiten: (json['atemschutzZeiten'] as Map?)?.cast<String, int>(),
+      atemschutzProtokoll: (json['atemschutzProtokoll'] as List?)
+          ?.map((e) => AtemschutzEintrag.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 }

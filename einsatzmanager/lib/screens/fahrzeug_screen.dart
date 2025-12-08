@@ -16,7 +16,6 @@ class FahrzeugScreen extends StatefulWidget {
 class _FahrzeugScreenState extends State<FahrzeugScreen> {
   late Fahrzeug _fahrzeug;
   final Map<TruppPosition, TextEditingController> _controllers = {};
-  bool _atemschutzEnabled = false;
 
   @override
   void initState() {
@@ -77,49 +76,6 @@ class _FahrzeugScreenState extends State<FahrzeugScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Atemschutz Einsatz Toggle
-              Card(
-                color: _atemschutzEnabled ? Colors.green[50] : Colors.grey[50],
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Atemschutzeinsatz',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            _atemschutzEnabled
-                                ? 'Aktiviert - Truppführer werden benötigt'
-                                : 'Deaktiviert',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                      Switch(
-                        value: _atemschutzEnabled,
-                        onChanged: (value) {
-                          setState(() {
-                            _atemschutzEnabled = value;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
               // Positionen
               const Text(
                 'Besatzung zuweisen',
@@ -128,19 +84,6 @@ class _FahrzeugScreenState extends State<FahrzeugScreen> {
               const SizedBox(height: 12),
               ..._buildPositionFields(),
               const SizedBox(height: 24),
-
-              // Atemschutz Truppen Übersicht
-              if (_atemschutzEnabled) ...[
-                const Divider(),
-                const SizedBox(height: 16),
-                const Text(
-                  'Atemschutzeinsatz - Truppführer',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                _buildAtemschutzOverview(),
-                const SizedBox(height: 24),
-              ],
 
               // Buttons
               Row(
@@ -175,14 +118,6 @@ class _FahrzeugScreenState extends State<FahrzeugScreen> {
 
   List<Widget> _buildPositionFields() {
     return TruppPosition.values.map((position) {
-      // Wenn Atemschutz aktiv ist, nur Truppführer anzeigen
-      if (_atemschutzEnabled) {
-        if (position != TruppPosition.angriffstruppfuehrer &&
-            position != TruppPosition.wassertrupp_fuehrer) {
-          return const SizedBox.shrink();
-        }
-      }
-
       return Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: TextField(
@@ -198,158 +133,7 @@ class _FahrzeugScreenState extends State<FahrzeugScreen> {
     }).toList();
   }
 
-  Widget _buildAtemschutzOverview() {
-    final angriffstruppFuehrer =
-        _controllers[TruppPosition.angriffstruppfuehrer]?.text ?? '';
-    final wassertruippFuehrer =
-        _controllers[TruppPosition.wassertrupp_fuehrer]?.text ?? '';
-
-    return Column(
-      children: [
-        if (angriffstruppFuehrer.isNotEmpty)
-          Card(
-            color: Colors.blue[50],
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Icon(Icons.people, color: Colors.blue[900]),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Angriffstrupp',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        Text(
-                          angriffstruppFuehrer,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-        else
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.red[200]!),
-              borderRadius: BorderRadius.circular(8),
-              color: Colors.red[50],
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.warning, color: Colors.red[900]),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Angriffstrupp Führer erforderlich',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.red[900],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        const SizedBox(height: 12),
-        if (wassertruippFuehrer.isNotEmpty)
-          Card(
-            color: Colors.cyan[50],
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Icon(Icons.people, color: Colors.cyan[900]),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Wassertrupp',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        Text(
-                          wassertruippFuehrer,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-        else
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.red[200]!),
-              borderRadius: BorderRadius.circular(8),
-              color: Colors.red[50],
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.warning, color: Colors.red[900]),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Wassertrupp Führer erforderlich',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.red[900],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
   void _saveFahrzeugDaten() {
-    // Bei Atemschutz: Nur Truppführer sind erforderlich
-    if (_atemschutzEnabled) {
-      final angriffstruppFuehrer =
-          _controllers[TruppPosition.angriffstruppfuehrer]?.text ?? '';
-      final wassertruippFuehrer =
-          _controllers[TruppPosition.wassertrupp_fuehrer]?.text ?? '';
-
-      if (angriffstruppFuehrer.isEmpty || wassertruippFuehrer.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Beide Truppführer sind erforderlich'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-    }
-
     // Besatzung sammeln
     final besatzung = <Besatzung>[];
     for (var position in TruppPosition.values) {
@@ -364,7 +148,7 @@ class _FahrzeugScreenState extends State<FahrzeugScreen> {
 
     final fahrzeug = _fahrzeug.copyWith(
       besatzung: besatzung,
-      atemschutzEinsatz: _atemschutzEnabled,
+      atemschutzEinsatz: false,
     );
 
     final updatedEinsatz = widget.einsatz.copyWith(

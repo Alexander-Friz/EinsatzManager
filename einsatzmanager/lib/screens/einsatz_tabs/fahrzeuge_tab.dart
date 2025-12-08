@@ -152,26 +152,6 @@ class _FahrzeugeTabState extends State<FahrzeugeTab> {
                 if (fahrzeug.besatzung.isNotEmpty)
                   Divider(color: Colors.grey[300]),
                 const SizedBox(height: 8),
-
-                // Atemschutz Info
-                Row(
-                  children: [
-                    Icon(
-                      fahrzeug.atemschutzEinsatz ? Icons.check_circle : Icons.cancel,
-                      color: fahrzeug.atemschutzEinsatz ? Colors.green : Colors.grey,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      fahrzeug.atemschutzEinsatz ? 'Atemschutzeinsatz: JA' : 'Atemschutzeinsatz: NEIN',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: fahrzeug.atemschutzEinsatz ? Colors.green : Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),

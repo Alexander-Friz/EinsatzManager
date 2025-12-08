@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'screens/home_screen_neu.dart';
 import 'services/einsatz_service_neu.dart';
 import 'services/dokumentation_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('de_DE', null);
   runApp(const MyApp());
 }
 

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/einsatz_neu.dart';
 import '../services/einsatz_service_neu.dart';
 import 'einsatz_erstellen_screen.dart';
+import 'einsatz_detail_screen.dart';
 
 class HomeScreenNeu extends StatelessWidget {
   const HomeScreenNeu({super.key});
@@ -150,7 +151,11 @@ class HomeScreenNeu extends StatelessWidget {
           color: Colors.grey[400],
         ),
         onTap: () {
-          // Optional: Detail-View öffnen
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => EinsatzDetailScreen(einsatz: einsatz),
+            ),
+          );
         },
       ),
     );
