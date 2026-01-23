@@ -214,27 +214,6 @@ class PdfService {
     );
   }
 
-  static pw.Widget _buildMonthTable(Map<int, int> operationsPerMonth) {
-    const monthNames = [
-      'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-      'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
-    ];
-
-    return pw.Table.fromTextArray(
-      border: pw.TableBorder.all(color: PdfColors.grey300),
-      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-      cellAlignment: pw.Alignment.centerLeft,
-      data: [
-        ['Monat', 'Anzahl Einsätze'],
-        ...operationsPerMonth.entries.map((entry) => [
-              monthNames[entry.key - 1],
-              entry.value.toString(),
-            ]),
-      ],
-    );
-  }
-
   static pw.Widget _buildTypeStatsChart(Map<String, int> operationTypeStats) {
     final total = operationTypeStats.values.fold(0, (a, b) => a + b);
     final sortedEntries = operationTypeStats.entries.toList()
@@ -294,30 +273,6 @@ class PdfService {
           ),
         );
       }).toList(),
-    );
-  }
-
-  static pw.Widget _buildTypeStatsTable(Map<String, int> operationTypeStats) {
-    final total = operationTypeStats.values.fold(0, (a, b) => a + b);
-    final sortedEntries = operationTypeStats.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    return pw.Table.fromTextArray(
-      border: pw.TableBorder.all(color: PdfColors.grey300),
-      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-      cellAlignment: pw.Alignment.centerLeft,
-      data: [
-        ['Einsatzart', 'Anzahl', 'Prozent'],
-        ...sortedEntries.map((entry) {
-          final percentage = (entry.value / total * 100).toStringAsFixed(1);
-          return [
-            entry.key,
-            entry.value.toString(),
-            '$percentage%',
-          ];
-        }),
-      ],
     );
   }
 
@@ -387,30 +342,6 @@ class PdfService {
     );
   }
 
-  static pw.Widget _buildDayNightTable(Map<String, int> dayNightStats) {
-    final total = dayNightStats.values.fold(0, (a, b) => a + b);
-    
-    return pw.Table.fromTextArray(
-      border: pw.TableBorder.all(color: PdfColors.grey300),
-      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-      cellAlignment: pw.Alignment.centerLeft,
-      data: [
-        ['Zeit', 'Anzahl', 'Prozent'],
-        ...dayNightStats.entries.map((entry) {
-          final percentage = total > 0 
-              ? (entry.value / total * 100).toStringAsFixed(1) 
-              : '0.0';
-          return [
-            entry.key,
-            entry.value.toString(),
-            '$percentage%',
-          ];
-        }),
-      ],
-    );
-  }
-
   static pw.Widget _buildTrainingChart(Map<String, int> trainingStats, int totalPersonnel) {
     final sortedEntries = trainingStats.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
@@ -467,25 +398,6 @@ class PdfService {
           ),
         );
       }).toList(),
-    );
-  }
-
-  static pw.Widget _buildTrainingTable(Map<String, int> trainingStats) {
-    final sortedEntries = trainingStats.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    return pw.Table.fromTextArray(
-      border: pw.TableBorder.all(color: PdfColors.grey300),
-      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-      cellAlignment: pw.Alignment.centerLeft,
-      data: [
-        ['Lehrgang', 'Anzahl Personen'],
-        ...sortedEntries.map((entry) => [
-              entry.key,
-              entry.value.toString(),
-            ]),
-      ],
     );
   }
 

@@ -207,7 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               icon: Icons.history,
               title: 'Vergangene Einsätze',
-              color: Colors.blue,
+              color: Colors.teal,
               onTap: () {
                 Navigator.push(
                   context,
@@ -233,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             _buildMenuTile(
               context,
-              icon: Icons.local_fire_department,
+              icon: Icons.build,
               title: 'Gerätewart',
               color: Colors.deepOrange,
               onTap: () {

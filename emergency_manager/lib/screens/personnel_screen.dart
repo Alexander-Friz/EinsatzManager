@@ -63,6 +63,13 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
         title: const Text('Personalverwaltung'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         toolbarHeight: 50,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person_add),
+            tooltip: 'Personal hinzufügen',
+            onPressed: () => _showPersonnelDialog(context, null, -1),
+          ),
+        ],
       ),
       body: Consumer<PersonnelNotifier>(
         builder: (context, personnelNotifier, child) {
@@ -169,11 +176,6 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                   },
                 );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showPersonnelDialog(context, null, -1),
-        tooltip: 'Personal hinzufügen',
-        child: const Icon(Icons.add),
       ),
     );
   }
