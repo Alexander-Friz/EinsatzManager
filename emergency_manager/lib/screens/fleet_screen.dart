@@ -81,7 +81,7 @@ class _FleetScreenState extends State<FleetScreen> {
                           Icons.fire_truck,
                           color: Theme.of(context).colorScheme.primary,
                         ),
-                        title: Text(vehicle.name),
+                        title: Text(vehicle.funkrufname),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -157,7 +157,7 @@ class _FleetScreenState extends State<FleetScreen> {
 
   void _showVehicleDialog(
       BuildContext context, Vehicle? vehicle, int index) {
-    final nameController = TextEditingController(text: vehicle?.name ?? '');
+    final nameController = TextEditingController(text: vehicle?.funkrufname ?? '');
     String selectedFahrzeugklasse =
         vehicle?.fahrzeugklasse ?? 'Loeschfahrzeug';
     bool hasGroupLeader = vehicle?.hasGroupLeader ?? false;
@@ -182,7 +182,7 @@ class _FleetScreenState extends State<FleetScreen> {
                     TextField(
                       controller: nameController,
                       decoration: const InputDecoration(
-                        labelText: 'Fahrzeugname',
+                        labelText: 'Funkrufname',
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -325,7 +325,7 @@ class _FleetScreenState extends State<FleetScreen> {
                     if (nameController.text.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Bitte Fahrzeugname eingeben'),
+                          content: Text('Bitte Funkrufname eingeben'),
                           duration: Duration(seconds: 2),
                         ),
                       );
@@ -335,7 +335,7 @@ class _FleetScreenState extends State<FleetScreen> {
                     if (vehicle == null) {
                       final newVehicle = Vehicle(
                         id: DateTime.now().toString(),
-                        name: nameController.text,
+                        funkrufname: nameController.text,
                         fahrzeugklasse: selectedFahrzeugklasse,
                         hasGroupLeader: hasGroupLeader,
                         hasMessenger: hasMessenger,
@@ -351,16 +351,16 @@ class _FleetScreenState extends State<FleetScreen> {
                       final notificationService = NotificationService();
                       if (newVehicle.isTuevExpiredNow) {
                         await notificationService.showTuevWarning(
-                            newVehicle.name, 'TÜV');
+                            newVehicle.funkrufname, 'TÜV');
                       }
                       if (newVehicle.isFeuerwehrTuevExpiredNow) {
                         await notificationService.showTuevWarning(
-                            newVehicle.name, 'Feuerwehr-TÜV');
+                            newVehicle.funkrufname, 'Feuerwehr-TÜV');
                       }
                     } else {
                       final updatedVehicle = Vehicle(
                         id: vehicle.id,
-                        name: nameController.text,
+                        funkrufname: nameController.text,
                         fahrzeugklasse: selectedFahrzeugklasse,
                         hasGroupLeader: hasGroupLeader,
                         hasMessenger: hasMessenger,
@@ -376,11 +376,11 @@ class _FleetScreenState extends State<FleetScreen> {
                       final notificationService = NotificationService();
                       if (updatedVehicle.isTuevExpiredNow) {
                         await notificationService.showTuevWarning(
-                            updatedVehicle.name, 'TÜV');
+                            updatedVehicle.funkrufname, 'TÜV');
                       }
                       if (updatedVehicle.isFeuerwehrTuevExpiredNow) {
                         await notificationService.showTuevWarning(
-                            updatedVehicle.name, 'Feuerwehr-TÜV');
+                            updatedVehicle.funkrufname, 'Feuerwehr-TÜV');
                       }
                     }
 
@@ -411,7 +411,7 @@ class _FleetScreenState extends State<FleetScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(vehicle.name),
+          title: Text(vehicle.funkrufname),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,

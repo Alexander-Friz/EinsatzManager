@@ -4,7 +4,7 @@ import 'dart:convert';
 
 class Vehicle {
   final String id;
-  final String name;
+  final String funkrufname;
   final String fahrzeugklasse;
   final bool hasGroupLeader;
   final bool hasMessenger;
@@ -14,7 +14,7 @@ class Vehicle {
 
   Vehicle({
     required this.id,
-    required this.name,
+    required this.funkrufname,
     required this.fahrzeugklasse,
     required this.hasGroupLeader,
     required this.hasMessenger,
@@ -35,7 +35,7 @@ class Vehicle {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'name': name,
+      'funkrufname': funkrufname,
       'fahrzeugklasse': fahrzeugklasse,
       'hasGroupLeader': hasGroupLeader,
       'hasMessenger': hasMessenger,
@@ -48,7 +48,7 @@ class Vehicle {
   factory Vehicle.fromJson(Map<String, dynamic> json) {
     return Vehicle(
       id: json['id'] as String,
-      name: json['name'] as String,
+      funkrufname: (json['funkrufname'] ?? json['name']) as String,
       fahrzeugklasse: json['fahrzeugklasse'] as String,
       hasGroupLeader: json['hasGroupLeader'] as bool? ?? false,
       hasMessenger: json['hasMessenger'] as bool? ?? false,
@@ -64,7 +64,7 @@ class Vehicle {
 
   Vehicle copyWith({
     String? id,
-    String? name,
+    String? funkrufname,
     String? fahrzeugklasse,
     bool? hasGroupLeader,
     bool? hasMessenger,
@@ -74,7 +74,7 @@ class Vehicle {
   }) {
     return Vehicle(
       id: id ?? this.id,
-      name: name ?? this.name,
+      funkrufname: funkrufname ?? this.funkrufname,
       fahrzeugklasse: fahrzeugklasse ?? this.fahrzeugklasse,
       hasGroupLeader: hasGroupLeader ?? this.hasGroupLeader,
       hasMessenger: hasMessenger ?? this.hasMessenger,

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
+import 'package:logger/logger.dart';
 import '../providers/archive_notifier.dart';
-import '../models/operation.dart';
+import '../models/operation.dart' show Operation, ProtocolEntry;
+
+final logger = Logger();
 
 class PastOperationsScreen extends StatefulWidget {
   const PastOperationsScreen({super.key});
@@ -281,7 +284,7 @@ class _PastOperationsScreenState extends State<PastOperationsScreen> {
         },
       );
     } catch (e) {
-      print('Fehler beim Anzeigen des Protokolls: $e');
+      logger.e('Fehler beim Anzeigen des Protokolls: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -310,7 +313,7 @@ class _PastOperationsScreenState extends State<PastOperationsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                entry.text ?? 'Ohne Text',
+                entry.text,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
@@ -331,7 +334,7 @@ class _PastOperationsScreenState extends State<PastOperationsScreen> {
         ),
       );
     } catch (e) {
-      print('Fehler beim Rendern von Protokoll-Eintrag $index: $e');
+      logger.e('Fehler beim Rendern von Protokoll-Eintrag $index: $e');
       return Padding(
         padding: const EdgeInsets.only(bottom: 16),
         child: Container(
@@ -387,7 +390,7 @@ class _PastOperationsScreenState extends State<PastOperationsScreen> {
         ),
       );
     } catch (e) {
-      print('Fehler beim Decodieren des Bildes: $e');
+      logger.e('Fehler beim Decodieren des Bildes: $e');
       return Padding(
         padding: const EdgeInsets.only(top: 12),
         child: Container(

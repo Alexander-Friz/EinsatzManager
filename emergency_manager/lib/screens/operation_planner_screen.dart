@@ -256,7 +256,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              vehicle.name,
+                              vehicle.funkrufname,
                               style: Theme.of(context).textTheme.titleSmall,
                             ),
                             const SizedBox(height: 12),
@@ -558,333 +558,228 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Atemschutz Aktivierungsschalter
-            Card(
-              color: _currentOperation.respiratoryActive
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.air,
-                          size: 32,
-                          color: _currentOperation.respiratoryActive
-                              ? Colors.white
-                              : Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 16),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Atemschutz im Einsatz'),
-                            Text(
-                              _currentOperation.respiratoryActive
-                                  ? 'AKTIV'
-                                  : 'INAKTIV',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    color: _currentOperation.respiratoryActive
-                                        ? Colors.white
-                                        : null,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    Switch(
-                      value: _currentOperation.respiratoryActive,
-                      onChanged: _isActive
-                          ? (value) {
-                              setState(() {
-                                // Initialisiere die Trupps wenn Atemschutz aktiviert wird
-                                Map<String, RespiratoryTrupp> initialBreathingApparatus =
-                                    Map<String, RespiratoryTrupp>.from(
-                                      _currentOperation.vehicleBreathingApparatus,
-                                    );
-
-                                if (value) {
-                                  // Beim Aktivieren: Initialisiere Trupps für alle Fahrzeuge
-                                  for (String vehicleId
-                                      in _currentOperation.vehicleIds) {
-                                    if (!initialBreathingApparatus
-                                        .containsKey(vehicleId)) {
-                                      initialBreathingApparatus[vehicleId] =
-                                          RespiratoryTrupp(
-                                        angriffstrupp: 'Angriffstrupp',
-                                        sicherungstrupp: 'Wassertrupp',
-                                      );
-                                    }
-                                  }
-                                }
-
-                                _currentOperation = Operation(
-                                  id: _currentOperation.id,
-                                  alarmstichwort: _currentOperation.alarmstichwort,
-                                  adresseOrGps: _currentOperation.adresseOrGps,
-                                  vehicleIds: _currentOperation.vehicleIds,
-                                  vehicleNames: _currentOperation.vehicleNames,
-                                  vehiclePersonnelAssignment:
-                                      _currentOperation.vehiclePersonnelAssignment,
-                                  einsatzTime: _currentOperation.einsatzTime,
-                                  protocol: _currentOperation.protocol,
-                                  respiratoryActive: value,
-                                  vehicleBreathingApparatus:
-                                      initialBreathingApparatus,
-                                );
-                              });
-                              // Protokoll-Eintrag hinzufügen
-                              _addProtocolEntry(value
-                                  ? 'Atemschutz aktiviert'
-                                  : 'Atemschutz deaktiviert');
-                            }
-                          : null,
-                    ),
-                  ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Atemschutztrupps',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-              ),
+                ElevatedButton.icon(
+                  onPressed: _showAddTruppDialog,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Trupp anlegen'),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
 
-            // Fahrzeuge mit Trupps
-            if (_currentOperation.respiratoryActive) ...[
-              Text(
-                'Fahrzeuge und Trupps',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 12),
+            // Atemschutztrupps (sortiert nach Zeit, neueste zuerst)
+            if (_currentOperation.atemschutzTrupps.isNotEmpty) ...[
               Consumer2<VehicleNotifier, PersonnelNotifier>(
                 builder: (context, vehicleNotifier, personnelNotifier, child) {
+                  // Sortiere Trupps nach Zeit (neueste zuerst)
+                  final sortedTrupps = List<AtemschutzTrupp>.from(_currentOperation.atemschutzTrupps)
+                      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                  
                   return Column(
                     children:
-                        _currentOperation.vehicleIds.map((vehicleId) {
-                      final vehicle = vehicleNotifier.vehicleList
-                          .firstWhere((v) => v.id == vehicleId);
-                      final breathingApparatus =
-                          _currentOperation.vehicleBreathingApparatus[vehicleId];
-                      final assignment =
-                          _currentOperation.vehiclePersonnelAssignment[vehicleId] ??
-                              {};
+                        sortedTrupps.map((trupp) {
+                      
+                      // Hole die Personennamen
+                      String person1Name;
+                      String person2Name;
+                      
+                      if (trupp.isVehicleLinked) {
+                        // Fahrzeug-Trupp: Suche in Personalliste
+                        final person1 = personnelNotifier.personnelList.firstWhere(
+                                (p) => p.id == trupp.person1Id,
+                                orElse: () => PersonalData(
+                                  id: 'unknown',
+                                  name: 'Unbekannt',
+                                  email: '',
+                                  phone: '',
+                                  position: '',
+                                  dienstgrad: '',
+                                  lehrgaenge: [],
+                                ));
+                        
+                        final person2 = personnelNotifier.personnelList.firstWhere(
+                                (p) => p.id == trupp.person2Id,
+                                orElse: () => PersonalData(
+                                  id: 'unknown',
+                                  name: 'Unbekannt',
+                                  email: '',
+                                  phone: '',
+                                  position: '',
+                                  dienstgrad: '',
+                                  lehrgaenge: [],
+                                ));
+                        
+                        person1Name = person1.name;
+                        person2Name = person2.name;
+                      } else {
+                        // GS-Trupp: person1Id/person2Id sind direkt die Namen
+                        person1Name = trupp.person1Id;
+                        person2Name = trupp.person2Id;
+                      }
+                      
+                      if (trupp.isVehicleLinked) {
+                        // Fahrzeug-Trupp
+                        final vehicle = vehicleNotifier.vehicleList
+                            .firstWhere((v) => v.id == trupp.vehicleId);
 
-                      // Sammle Personen nach ihren Trupps
-                      final angriffstruppPersonen = assignment.entries
-                          .where((e) => e.value.contains('Angriffstrupp'))
-                          .map((e) => e.key)
-                          .toList();
-                      final sicherungstruppPersonen = assignment.entries
-                          .where((e) => e.value.contains('Sicherungstrupp'))
-                          .map((e) => e.key)
-                          .toList();
-
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                vehicle.name,
-                                style: Theme.of(context).textTheme.titleSmall,
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Angriffstrupp
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .primaryContainer,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Icon(Icons.person_4,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onPrimaryContainer),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text('Angriffstrupp'),
-                                          if (angriffstruppPersonen.isNotEmpty)
-                                            Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: angriffstruppPersonen
-                                                  .map((personelId) {
-                                                final person =
-                                                    personnelNotifier.personnelList
-                                                        .firstWhere((p) =>
-                                                            p.id == personelId);
-                                                return Text(
-                                                  person.name,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .bodyMedium
-                                                      ?.copyWith(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                );
-                                              }).toList(),
-                                            )
-                                          else
-                                            const Text(
-                                              'Keine Personen zugewiesen',
-                                              style: TextStyle(
-                                                fontStyle: FontStyle.italic,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
+                                    Text(
+                                      '${vehicle.funkrufname} - ${trupp.name}',
+                                      style: Theme.of(context).textTheme.titleSmall,
+                                    ),
+                                    Text(
+                                      '${trupp.createdAt.hour.toString().padLeft(2, '0')}:${trupp.createdAt.minute.toString().padLeft(2, '0')}',
+                                      style: Theme.of(context).textTheme.bodySmall,
                                     ),
                                   ],
                                 ),
-                              ),
-                              const SizedBox(height: 12),
-
-                              // Sicherungstrupp
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .secondaryContainer,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Icon(Icons.person_3,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSecondaryContainer),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              const Text('Sicherungstrupp'),
-                                              if (sicherungstruppPersonen
-                                                  .isNotEmpty)
-                                                Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: sicherungstruppPersonen
-                                                      .map((personelId) {
-                                                    final person = personnelNotifier
-                                                        .personnelList
-                                                        .firstWhere((p) =>
-                                                            p.id == personelId);
-                                                    return Text(
-                                                      person.name,
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .bodySmall,
-                                                    );
-                                                  }).toList(),
-                                                )
-                                              else
-                                                const Text(
-                                                  'Keine Personen zugewiesen',
-                                                  style: TextStyle(
-                                                    fontStyle: FontStyle.italic,
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.people,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimaryContainer),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              person1Name,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                    fontWeight:
+                                                        FontWeight.bold,
                                                   ),
-                                                ),
-                                            ],
-                                          ),
+                                            ),
+                                            Text(
+                                              person2Name,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                    fontWeight:
+                                                        FontWeight.bold,
+                                                  ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                // Countdown Timer
+                                _buildTimerSection(trupp),
+                              ],
+                            ),
+                          ),
+                        );
+                      } else {
+                        // Großschadenslagen-Trupp
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'GS - ${trupp.name}',
+                                      style: Theme.of(context).textTheme.titleSmall,
                                     ),
-                                    const SizedBox(height: 12),
-                                    SegmentedButton<String>(
-                                      segments: const [
-                                        ButtonSegment(
-                                          value: 'Wassertrupp',
-                                          label: Text('Wassertrupp'),
-                                          icon: Icon(Icons.water_drop),
-                                        ),
-                                        ButtonSegment(
-                                          value: 'Schlauchtrupp',
-                                          label: Text('Schlauchtrupp'),
-                                          icon: Icon(Icons.fire_extinguisher),
-                                        ),
-                                      ],
-                                      selected: {
-                                        breathingApparatus?.sicherungstrupp ??
-                                            'Wassertrupp'
-                                      },
-                                      onSelectionChanged: (newSelection) {
-                                        final oldType =
-                                            breathingApparatus?.sicherungstrupp;
-                                        final newType = newSelection.first;
-
-                                        setState(() {
-                                          final updatedMap = Map<String,
-                                              RespiratoryTrupp>.from(
-                                            _currentOperation
-                                                .vehicleBreathingApparatus,
-                                          );
-                                          updatedMap[vehicleId] =
-                                              RespiratoryTrupp(
-                                            angriffstrupp:
-                                                breathingApparatus?.angriffstrupp ??
-                                                    'Unbekannt',
-                                            sicherungstrupp: newType,
-                                          );
-                                          _currentOperation = Operation(
-                                            id: _currentOperation.id,
-                                            alarmstichwort:
-                                                _currentOperation.alarmstichwort,
-                                            adresseOrGps:
-                                                _currentOperation.adresseOrGps,
-                                            vehicleIds:
-                                                _currentOperation.vehicleIds,
-                                            vehicleNames:
-                                                _currentOperation.vehicleNames,
-                                            vehiclePersonnelAssignment:
-                                                _currentOperation
-                                                    .vehiclePersonnelAssignment,
-                                            einsatzTime:
-                                                _currentOperation.einsatzTime,
-                                            protocol:
-                                                _currentOperation.protocol,
-                                            respiratoryActive:
-                                                _currentOperation
-                                                    .respiratoryActive,
-                                            vehicleBreathingApparatus:
-                                                updatedMap,
-                                          );
-                                        });
-
-                                        // Protokoll-Eintrag hinzufügen
-                                        _addProtocolEntry(
-                                          '${vehicle.name}: Sicherungstrupp geändert von $oldType zu $newType',
-                                        );
-                                      },
+                                    Text(
+                                      '${trupp.createdAt.hour.toString().padLeft(2, '0')}:${trupp.createdAt.minute.toString().padLeft(2, '0')}',
+                                      style: Theme.of(context).textTheme.bodySmall,
                                     ),
                                   ],
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .tertiaryContainer,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.people,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onTertiaryContainer),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              person1Name,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                    fontWeight:
+                                                        FontWeight.bold,
+                                                  ),
+                                            ),
+                                            Text(
+                                              person2Name,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                    fontWeight:
+                                                        FontWeight.bold,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                // Countdown Timer
+                                _buildTimerSection(trupp),
+                              ],
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      }
                     }).toList(),
                   );
                 },
@@ -903,10 +798,10 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                           .withValues(alpha: 0.3),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Atemschutz ist nicht aktiviert'),
+                    const Text('Noch keine Atemschutztrupps angelegt'),
                     const SizedBox(height: 8),
                     const Text(
-                      'Aktivieren Sie den Schalter oben, um Atemschutztrupps zu verwalten',
+                      'Klicken Sie auf "Trupp anlegen", um Ihre ersten Trupps zu erstellen',
                     ),
                   ],
                 ),
@@ -928,6 +823,604 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
     });
   }
 
+  void _showAddTruppDialog() {
+    String? selectedVehicleId;
+    String? selectedTrupp;
+    String? selectedPerson1Id;
+    String? selectedPerson2Id;
+    String freetruppName = '';
+    String person1Name = '';
+    String person2Name = '';
+    bool isVehicleLinked = true;
+    String nameInputMode = 'name'; // 'name' oder 'personnel'
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final vehicleNotifier = this.context.read<VehicleNotifier>();
+        final personnelNotifier = this.context.read<PersonnelNotifier>();
+        
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Atemschutztrupp anlegen'),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Bereits angelegte Trupps anzeigen
+                    if (_currentOperation.atemschutzTrupps.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Bereits angelegte Trupps:',
+                              style: Theme.of(context).textTheme.labelLarge,
+                            ),
+                            const SizedBox(height: 8),
+                            ..._currentOperation.atemschutzTrupps.map((trupp) {
+                              if (trupp.vehicleId != null) {
+                                final vehicle = vehicleNotifier.vehicleList
+                                    .firstWhere((v) => v.id == trupp.vehicleId);
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Text(
+                                    '• ${vehicle.funkrufname}: ${trupp.name}',
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                );
+                              } else {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Text(
+                                    '• GS: ${trupp.name}',
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                );
+                              }
+                            }).toList(),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Toggle: Mit oder ohne Fahrzeugbezug
+                    SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment(
+                          value: true,
+                          label: Text('Mit Fahrzeugbezug'),
+                          icon: Icon(Icons.local_shipping),
+                        ),
+                        ButtonSegment(
+                          value: false,
+                          label: Text('Ohne Fahrzeugbezug'),
+                          icon: Icon(Icons.people),
+                        ),
+                      ],
+                      selected: {isVehicleLinked},
+                      onSelectionChanged: (newSelection) {
+                        setState(() {
+                          isVehicleLinked = newSelection.first;
+                          selectedVehicleId = null;
+                          selectedTrupp = null;
+                          selectedPerson1Id = null;
+                          selectedPerson2Id = null;
+                          freetruppName = '';
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    if (isVehicleLinked) ...[
+                      const Text('1. Wählen Sie ein Fahrzeug:'),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: selectedVehicleId,
+                        hint: const Text('Fahrzeug wählen'),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        items: _currentOperation.vehicleIds.map((vehicleId) {
+                          final vehicle = vehicleNotifier.vehicleList
+                              .firstWhere((v) => v.id == vehicleId);
+                          return DropdownMenuItem<String>(
+                            value: vehicleId,
+                            child: Text(vehicle.funkrufname),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selectedVehicleId = value;
+                            selectedTrupp = null;
+                            selectedPerson1Id = null;
+                            selectedPerson2Id = null;
+                            
+                            // Automatisch die Besatzung des Fahrzeugs setzen
+                            if (value != null && _currentOperation.vehiclePersonnelAssignment.containsKey(value)) {
+                              final assignedPersonnel = _currentOperation.vehiclePersonnelAssignment[value]!;
+                              final personnelIds = assignedPersonnel.keys.toList();
+                              
+                              // Setze die ersten zwei Personen automatisch
+                              if (personnelIds.isNotEmpty) {
+                                selectedPerson1Id = personnelIds[0];
+                              }
+                              if (personnelIds.length > 1) {
+                                selectedPerson2Id = personnelIds[1];
+                              }
+                            }
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      if (selectedVehicleId != null) ...[
+                        const Text('2. Wählen Sie einen Trupp:'),
+                        const SizedBox(height: 8),
+                        Builder(
+                          builder: (context) {
+                            final vehicle = vehicleNotifier.vehicleList
+                                .firstWhere((v) => v.id == selectedVehicleId);
+                            
+                            // Trupps die bereits für dieses Fahrzeug verwendet wurden
+                            final usedTrupps = <String>{};
+                            _currentOperation.atemschutzTrupps.forEach((atTrupp) {
+                              // Nur Trupps für dieses spezifische Fahrzeug berücksichtigen
+                              if (atTrupp.vehicleId == selectedVehicleId) {
+                                usedTrupps.add(atTrupp.name);
+                              }
+                            });
+                            
+                            final availableTrupps = vehicle.trupps
+                                .where((t) => !usedTrupps.contains(t))
+                                .toList();
+
+                            if (availableTrupps.isEmpty) {
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.errorContainer,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Alle Trupps dieses Fahrzeugs sind bereits angelegt',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onErrorContainer,
+                                  ),
+                                ),
+                              );
+                            }
+
+                            return DropdownButtonFormField<String>(
+                              value: selectedTrupp,
+                              hint: const Text('Trupp wählen'),
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
+                              items: availableTrupps.map((trupp) {
+                                return DropdownMenuItem<String>(
+                                  value: trupp,
+                                  child: Text(trupp),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedTrupp = value;
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    ] else ...[
+                      // Truppname (immer Freitext)
+                      const Text('Truppname:'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        decoration: InputDecoration(
+                          hintText: 'z.B. Angriffstrupp, Sondertrupp',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            freetruppName = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Auswahl: Personen eingeben oder aus Liste wählen
+                      const Text('Personen:'),
+                      const SizedBox(height: 8),
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(
+                            value: 'name',
+                            label: Text('Namen eingeben'),
+                          ),
+                          ButtonSegment(
+                            value: 'personnel',
+                            label: Text('Aus Personal wählen'),
+                          ),
+                        ],
+                        selected: {nameInputMode},
+                        onSelectionChanged: (newSelection) {
+                          setState(() {
+                            nameInputMode = newSelection.first;
+                            if (nameInputMode == 'name') {
+                              selectedPerson1Id = null;
+                              selectedPerson2Id = null;
+                            } else {
+                              person1Name = '';
+                              person2Name = '';
+                            }
+                          });
+                        },
+                      ),
+                    ],
+                    
+                    // Truppbesetzung nur bei Großschadenslagen anzeigen
+                    if (!isVehicleLinked) ...[
+                      const SizedBox(height: 16),
+                      const Text('Truppbesetzung:'),
+                      Text(
+                        nameInputMode == 'name' 
+                          ? 'Geben Sie die Namen der zwei Personen ein'
+                          : 'Wählen Sie zwei Personen für den Trupp',
+                        style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Bei "Namen eingeben": Textfelder für Personennamen
+                      if (nameInputMode == 'name') ...[
+                        const Text('1. Person:'),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          decoration: InputDecoration(
+                            hintText: 'Name der ersten Person',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              person1Name = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        const Text('2. Person:'),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          decoration: InputDecoration(
+                            hintText: 'Name der zweiten Person',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              person2Name = value;
+                            });
+                          },
+                        ),
+                      ],
+                      
+                      // Bei "Aus Personal": Dropdowns für Personenauswahl
+                      if (nameInputMode == 'personnel') ...[
+                        const Text('1. Person:'),
+                        const SizedBox(height: 8),
+                        Builder(
+                          builder: (context) {
+                            // Dedupliziere die Liste
+                            final seenIds = <String>{};
+                            final uniquePersonnel = personnelNotifier.personnelList.where((person) {
+                              if (seenIds.contains(person.id)) {
+                                return false;
+                              }
+                              seenIds.add(person.id);
+                              return true;
+                            }).toList();
+                            
+                            return DropdownButtonFormField<String>(
+                              value: selectedPerson1Id,
+                              hint: const Text('Person wählen'),
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
+                              items: uniquePersonnel.map((person) {
+                                return DropdownMenuItem<String>(
+                                  value: person.id,
+                                  child: Text('${person.name} (${person.dienstgrad})'),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedPerson1Id = value;
+                                });
+                              },
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        const Text('2. Person:'),
+                        const SizedBox(height: 8),
+                        Builder(
+                          builder: (context) {
+                            // Dedupliziere die Liste
+                            final seenIds = <String>{};
+                            final uniquePersonnel = personnelNotifier.personnelList.where((person) {
+                              if (seenIds.contains(person.id)) {
+                                return false;
+                              }
+                              seenIds.add(person.id);
+                              return true;
+                            }).toList();
+                            
+                            return DropdownButtonFormField<String>(
+                              value: selectedPerson2Id,
+                              hint: const Text('Person wählen'),
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
+                              items: uniquePersonnel.map((person) {
+                                return DropdownMenuItem<String>(
+                                  value: person.id,
+                                  child: Text('${person.name} (${person.dienstgrad})'),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedPerson2Id = value;
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Abbrechen'),
+                ),
+                ElevatedButton(
+                  onPressed: _canCreateTrupp(
+                    isVehicleLinked,
+                    selectedVehicleId,
+                    selectedTrupp,
+                    freetruppName,
+                    nameInputMode,
+                    person1Name,
+                    person2Name,
+                    selectedPerson1Id,
+                    selectedPerson2Id,
+                  )
+                      ? () {
+                          _createTrupp(
+                            isVehicleLinked,
+                            selectedVehicleId,
+                            selectedTrupp,
+                            freetruppName,
+                            nameInputMode,
+                            person1Name,
+                            person2Name,
+                            selectedPerson1Id,
+                            selectedPerson2Id,
+                          );
+                          Navigator.pop(context);
+                        }
+                      : null,
+                  child: const Text('Atemschutztrupp anlegen'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  bool _canCreateTrupp(
+    bool isVehicleLinked,
+    String? selectedVehicleId,
+    String? selectedTrupp,
+    String freetruppName,
+    String nameInputMode,
+    String person1Name,
+    String person2Name,
+    String? selectedPerson1Id,
+    String? selectedPerson2Id,
+  ) {
+    if (isVehicleLinked) {
+      // Bei Fahrzeugbezug: nur Fahrzeug und Trupp erforderlich
+      return selectedVehicleId != null && selectedTrupp != null;
+    } else {
+      // Bei Großschadenslagen: Name erforderlich
+      if (freetruppName.trim().isEmpty) return false;
+      
+      if (nameInputMode == 'name') {
+        // Bei Freitexteingabe: beide Personennamen müssen eingegeben sein
+        return person1Name.trim().isNotEmpty && person2Name.trim().isNotEmpty;
+      } else {
+        // Bei Personalauswahl: beide Personen müssen ausgewählt und unterschiedlich sein
+        if (selectedPerson1Id == null || selectedPerson2Id == null) return false;
+        if (selectedPerson1Id == selectedPerson2Id) return false;
+        return true;
+      }
+    }
+  }
+
+  void _createTrupp(
+    bool isVehicleLinked,
+    String? selectedVehicleId,
+    String? selectedTrupp,
+    String freetruppName,
+    String nameInputMode,
+    String person1Name,
+    String person2Name,
+    String? selectedPerson1Id,
+    String? selectedPerson2Id,
+  ) {
+    setState(() {
+      final updatedList = List<AtemschutzTrupp>.from(
+        _currentOperation.atemschutzTrupps,
+      );
+
+      if (isVehicleLinked && selectedVehicleId != null && selectedTrupp != null) {
+        // Mit Fahrzeugbezug - hole Personen automatisch aus der Fahrzeugbesatzung
+        String? person1Id;
+        String? person2Id;
+        
+        if (_currentOperation.vehiclePersonnelAssignment.containsKey(selectedVehicleId)) {
+          final assignedPersonnel = _currentOperation.vehiclePersonnelAssignment[selectedVehicleId]!;
+          final personnelIds = assignedPersonnel.keys.toList();
+          
+          if (personnelIds.length >= 2) {
+            person1Id = personnelIds[0];
+            person2Id = personnelIds[1];
+            
+            // Hole die Namen für das Protokoll
+            final person1 = context.read<PersonnelNotifier>().personnelList
+                .firstWhere((p) => p.id == person1Id, orElse: () => PersonalData(
+                  id: 'unknown', name: 'Unbekannt', email: '', phone: '', 
+                  position: '', dienstgrad: '', lehrgaenge: []));
+            final person2 = context.read<PersonnelNotifier>().personnelList
+                .firstWhere((p) => p.id == person2Id, orElse: () => PersonalData(
+                  id: 'unknown', name: 'Unbekannt', email: '', phone: '', 
+                  position: '', dienstgrad: '', lehrgaenge: []));
+            
+            updatedList.add(AtemschutzTrupp(
+              name: selectedTrupp,
+              vehicleId: selectedVehicleId,
+              person1Id: person1Id,
+              person2Id: person2Id,
+            ));
+            
+            _addProtocolEntry('Atemschutztrupp "$selectedTrupp" angelegt: ${person1.name}, ${person2.name}');
+          }
+        }
+      } else {
+        // Ohne Fahrzeugbezug (Großschadenslagen)
+        if (nameInputMode == 'name') {
+          // Freitexteingabe - speichere die Namen direkt
+          final name1 = person1Name.trim();
+          final name2 = person2Name.trim();
+          
+          updatedList.add(AtemschutzTrupp(
+            name: freetruppName,
+            vehicleId: null,
+            person1Id: name1,
+            person2Id: name2,
+          ));
+          
+          _addProtocolEntry('Großschadenslagen-Atemschutztrupp "$freetruppName" angelegt: $name1, $name2');
+        } else {
+          // Personalauswahl - verwende ausgewählte Personen
+          if (selectedPerson1Id != null && selectedPerson2Id != null) {
+            final person1 = context.read<PersonnelNotifier>().personnelList
+                .firstWhere((p) => p.id == selectedPerson1Id, orElse: () => PersonalData(
+                  id: 'unknown', name: 'Unbekannt', email: '', phone: '', 
+                  position: '', dienstgrad: '', lehrgaenge: []));
+            final person2 = context.read<PersonnelNotifier>().personnelList
+                .firstWhere((p) => p.id == selectedPerson2Id, orElse: () => PersonalData(
+                  id: 'unknown', name: 'Unbekannt', email: '', phone: '', 
+                  position: '', dienstgrad: '', lehrgaenge: []));
+            
+            updatedList.add(AtemschutzTrupp(
+              name: freetruppName,
+              vehicleId: null,
+              person1Id: selectedPerson1Id,
+              person2Id: selectedPerson2Id,
+            ));
+            
+            _addProtocolEntry('Großschadenslagen-Atemschutztrupp "$freetruppName" angelegt: ${person1.name}, ${person2.name}');
+          }
+        }
+      }
+
+      _currentOperation = Operation(
+        id: _currentOperation.id,
+        alarmstichwort: _currentOperation.alarmstichwort,
+        adresseOrGps: _currentOperation.adresseOrGps,
+        vehicleIds: _currentOperation.vehicleIds,
+        vehicleNames: _currentOperation.vehicleNames,
+        vehiclePersonnelAssignment: _currentOperation.vehiclePersonnelAssignment,
+        einsatzTime: _currentOperation.einsatzTime,
+        protocol: _currentOperation.protocol,
+        respiratoryActive: true,
+        atemschutzTrupps: updatedList,
+        vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+      );
+    });
+  }
+
+  void _showSaveOperationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Einsatz speichern'),
+          content: const Text(
+            'Möchten Sie diesen Einsatz beenden und archivieren?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Nein'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final archiveNotifier = context.read<ArchiveNotifier>();
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(context);
+
+                Navigator.pop(context);
+                // Archiviere den Einsatz mit aktuellem Protokoll
+                await archiveNotifier.archiveOperation(_currentOperation);
+                scaffoldMessenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Einsatz beendet und archiviert'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+                // Navigiere zurück ins Hauptmenü
+                Future.delayed(const Duration(milliseconds: 500), () {
+                  if (mounted) {
+                    navigator.popUntil((route) => route.isFirst);
+                  }
+                });
+              },
+              child: const Text('Ja'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -938,11 +1431,11 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: _isActive
-              ? null
+              ? () => _showSaveOperationDialog()
               : () {
                   Navigator.pop(context);
                 },
-          tooltip: _isActive ? 'Einsatz läuft noch' : 'Schließen',
+          tooltip: _isActive ? 'Einsatz speichern und beenden' : 'Schließen',
         ),
       ),
       body: _buildTabContent(),
@@ -974,5 +1467,186 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
         },
       ),
     );
+  }
+
+  Widget _buildTimerSection(AtemschutzTrupp trupp) {
+    if (!trupp.isActive) {
+      // Startknopf anzeigen
+      return ElevatedButton.icon(
+        onPressed: () => _showPressureDialog(trupp),
+        icon: const Icon(Icons.play_arrow),
+        label: const Text('Stoppuhr starten'),
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size(double.infinity, 40),
+        ),
+      );
+    } else {
+      // Timer anzeigen
+      return StreamBuilder<void>(
+        stream: Stream.periodic(const Duration(seconds: 1)),
+        builder: (context, snapshot) {
+          final remainingTime = _calculateRemainingTime(trupp);
+          final isWarning = remainingTime.inMinutes < 5;
+          final isAlert = remainingTime.isNegative;
+          
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isAlert 
+                  ? Colors.red.shade100 
+                  : isWarning 
+                      ? Colors.orange.shade100 
+                      : Colors.green.shade100,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.timer,
+                      color: isAlert 
+                          ? Colors.red.shade900 
+                          : isWarning 
+                              ? Colors.orange.shade900 
+                              : Colors.green.shade900,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatDuration(remainingTime.abs()),
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: isAlert 
+                            ? Colors.red.shade900 
+                            : isWarning 
+                                ? Colors.orange.shade900 
+                                : Colors.green.shade900,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '${trupp.lowestPressure} bar',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isAlert 
+                        ? Colors.red.shade900 
+                        : isWarning 
+                            ? Colors.orange.shade900 
+                            : Colors.green.shade900,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+  }
+
+  Duration _calculateRemainingTime(AtemschutzTrupp trupp) {
+    if (trupp.startTime == null) {
+      return Duration.zero;
+    }
+    
+    // Fester 30-Minuten Timer
+    final endTime = trupp.startTime!.add(const Duration(minutes: 30));
+    final remaining = endTime.difference(DateTime.now());
+    
+    return remaining;
+  }
+
+  String _formatDuration(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  void _showPressureDialog(AtemschutzTrupp trupp) {
+    final pressureController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Atemschutzüberwachung starten'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Trupp: ${trupp.name}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              const Text('Niedrigster Flaschendruck des Trupps (in bar):'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: pressureController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'z.B. 200',
+                  suffixText: 'bar',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                autofocus: true,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final pressure = int.tryParse(pressureController.text);
+                if (pressure != null && pressure > 0) {
+                  _startTimer(trupp, pressure);
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Starten'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _startTimer(AtemschutzTrupp trupp, int pressure) {
+    setState(() {
+      final updatedList = _currentOperation.atemschutzTrupps.map((t) {
+        if (t.id == trupp.id) {
+          return t.copyWith(
+            startTime: DateTime.now(),
+            lowestPressure: pressure,
+            isActive: true,
+          );
+        }
+        return t;
+      }).toList();
+
+      _currentOperation = Operation(
+        id: _currentOperation.id,
+        alarmstichwort: _currentOperation.alarmstichwort,
+        adresseOrGps: _currentOperation.adresseOrGps,
+        vehicleIds: _currentOperation.vehicleIds,
+        vehicleNames: _currentOperation.vehicleNames,
+        vehiclePersonnelAssignment: _currentOperation.vehiclePersonnelAssignment,
+        einsatzTime: _currentOperation.einsatzTime,
+        protocol: _currentOperation.protocol,
+        respiratoryActive: _currentOperation.respiratoryActive,
+        atemschutzTrupps: updatedList,
+        vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+      );
+    });
+    
+    _addProtocolEntry('Atemschutzüberwachung für "${trupp.name}" gestartet (${pressure} bar)');
   }
 }

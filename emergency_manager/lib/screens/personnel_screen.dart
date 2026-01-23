@@ -169,9 +169,14 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
     final nameController = TextEditingController(text: person?.name ?? '');
     final emailController = TextEditingController(text: person?.email ?? '');
     final phoneController = TextEditingController(text: person?.phone ?? '');
-    String selectedAmt = person?.position ?? 'Mannschaft';
-    String selectedDienstgrad = person?.dienstgrad ?? 'Anwärter';
+    String selectedAmt = availableAmts.contains(person?.position)
+        ? person!.position
+        : 'Mannschaft';
+    String selectedDienstgrad = availableDienstgrade.contains(person?.dienstgrad)
+        ? person!.dienstgrad
+        : 'Anwärter';
     List<String> selectedLehrgaenge = List.from(person?.lehrgaenge ?? []);
+    DateTime? geburtstag = person?.geburtstag;
     DateTime? g263Datum = person?.g263Datum;
     DateTime? untersuchungAblaufdatum = person?.untersuchungAblaufdatum;
     bool inaktivAgt = person?.inaktivAgt ?? false;
@@ -256,6 +261,30 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                           });
                         }
                       },
+                    ),
+                    const SizedBox(height: 16),
+                    ListTile(
+                      title: const Text('Geburtstag'),
+                      subtitle: Text(
+                        geburtstag != null
+                            ? '${geburtstag!.day}.${geburtstag!.month}.${geburtstag!.year}'
+                            : 'Nicht eingetragen',
+                      ),
+                      trailing: const Icon(Icons.calendar_today),
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: geburtstag ?? DateTime.now(),
+                          firstDate: DateTime(1950),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            geburtstag = picked;
+                          });
+                        }
+                      },
+                      contentPadding: EdgeInsets.zero,
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -393,6 +422,7 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                         position: selectedAmt,
                         dienstgrad: selectedDienstgrad,
                         lehrgaenge: selectedLehrgaenge,
+                        geburtstag: geburtstag,
                         g263Datum: g263Datum,
                         untersuchungAblaufdatum: untersuchungAblaufdatum,
                         inaktivAgt: inaktivAgt,
@@ -416,6 +446,7 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                         position: selectedAmt,
                         dienstgrad: selectedDienstgrad,
                         lehrgaenge: selectedLehrgaenge,
+                        geburtstag: geburtstag,
                         g263Datum: g263Datum,
                         untersuchungAblaufdatum: untersuchungAblaufdatum,
                         inaktivAgt: inaktivAgt,
@@ -510,6 +541,10 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                 Text('Amt: ${person.position}'),
                 const SizedBox(height: 8),
                 Text('Dienstgrad: ${person.dienstgrad}'),
+                const SizedBox(height: 8),
+                Text(
+                  'Geburtstag: ${person.geburtstag != null ? '${person.geburtstag!.day}.${person.geburtstag!.month}.${person.geburtstag!.year}' : 'Nicht eingetragen'}',
+                ),
                 const SizedBox(height: 12),
                 const Text(
                   'Lehrgänge:',
