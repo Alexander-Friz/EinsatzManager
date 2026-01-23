@@ -51,4 +51,14 @@ class ArchiveNotifier extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<void> updateArchivedOperation(int index, Operation updatedOperation) async {
+    if (index >= 0 && index < _archivedOperations.length) {
+      _archivedOperations[index] = updatedOperation;
+      // Sortiere nach Einsatzzeit (neuste zuerst)
+      _archivedOperations.sort((a, b) => b.einsatzTime.compareTo(a.einsatzTime));
+      await _saveArchivedOperations();
+      notifyListeners();
+    }
+  }
 }

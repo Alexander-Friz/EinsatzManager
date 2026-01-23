@@ -6,6 +6,7 @@ import 'screens/operation_create_screen.dart';
 import 'screens/device_manager_screen.dart';
 import 'screens/past_operations_screen.dart';
 import 'screens/message_center_screen.dart';
+import 'screens/statistics_screen.dart';
 import 'providers/theme_notifier.dart';
 import 'providers/personnel_notifier.dart';
 import 'providers/message_notifier.dart';
@@ -266,12 +267,16 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             _buildMenuTile(
               context,
-              icon: Icons.sync,
-              title: 'Synchronisieren',
+              icon: Icons.bar_chart,
+              title: 'Statistiken',
               color: Colors.purple,
               onTap: () {
-                // TODO: Synchronisierung starten
-                _showComingSoon(context, 'Synchronisieren');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const StatisticsScreen(),
+                  ),
+                );
               },
             ),
           ],
@@ -346,15 +351,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature - Diese Funktion wird noch implementiert'),
-        duration: const Duration(seconds: 2),
       ),
     );
   }

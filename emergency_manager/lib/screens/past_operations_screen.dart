@@ -5,6 +5,8 @@ import 'package:logger/logger.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../providers/archive_notifier.dart';
 import '../models/operation.dart' show Operation, ProtocolEntry;
+import 'operation_detail_screen.dart';
+import 'operation_edit_screen.dart';
 
 final logger = Logger();
 
@@ -91,29 +93,55 @@ class _PastOperationsScreenState extends State<PastOperationsScreen> {
                             ),
                           ],
                         ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  OperationDetailScreen(
+                                    operation: operation,
+                                    operationIndex: index,
+                                  ),
+                            ),
+                          );
+                        },
                         trailing: PopupMenuButton<String>(
                           onSelected: (value) {
                             if (value == 'delete') {
                               _deleteOperation(context, operation, index);
-                            } else if (value == 'details') {
-                              _showOperationDetails(context, operation);
-                            } else if (value == 'protocol') {
-                              _showOperationProtocol(context, operation);
+                            } else if (value == 'edit') {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => OperationEditScreen(
+                                    operation: operation,
+                                    operationIndex: index,
+                                  ),
+                                ),
+                              );
                             }
                           },
                           itemBuilder: (BuildContext context) =>
                               <PopupMenuEntry<String>>[
                             const PopupMenuItem<String>(
-                              value: 'details',
-                              child: Text('Details anzeigen'),
-                            ),
-                            const PopupMenuItem<String>(
-                              value: 'protocol',
-                              child: Text('Protokoll anzeigen'),
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Abändern'),
+                                ],
+                              ),
                             ),
                             const PopupMenuItem<String>(
                               value: 'delete',
-                              child: Text('Löschen'),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Löschen'),
+                                ],
+                              ),
                             ),
                           ],
                         ),
