@@ -58,16 +58,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.schedule,
                     title: 'Startzeit Dark Mode',
                     time: themeNotifier.darkModeStartHour,
+                    minute: themeNotifier.darkModeStartMinute,
                     onTap: () async {
                       final TimeOfDay? picked = await showTimePicker(
                         context: context,
                         initialTime: TimeOfDay(
                           hour: themeNotifier.darkModeStartHour,
-                          minute: 0,
+                          minute: themeNotifier.darkModeStartMinute,
                         ),
                       );
                       if (picked != null && context.mounted) {
-                        context.read<ThemeNotifier>().setDarkModeStartHour(picked.hour);
+                        context.read<ThemeNotifier>().setDarkModeStartTime(picked.hour, picked.minute);
                       }
                     },
                   ),
@@ -76,16 +77,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.schedule,
                     title: 'Endzeit Dark Mode',
                     time: themeNotifier.darkModeEndHour,
+                    minute: themeNotifier.darkModeEndMinute,
                     onTap: () async {
                       final TimeOfDay? picked = await showTimePicker(
                         context: context,
                         initialTime: TimeOfDay(
                           hour: themeNotifier.darkModeEndHour,
-                          minute: 0,
+                          minute: themeNotifier.darkModeEndMinute,
                         ),
                       );
                       if (picked != null && context.mounted) {
-                        context.read<ThemeNotifier>().setDarkModeEndHour(picked.hour);
+                        context.read<ThemeNotifier>().setDarkModeEndTime(picked.hour, picked.minute);
                       }
                     },
                   ),
@@ -112,12 +114,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required IconData icon,
     required String title,
     required int time,
+    int minute = 0,
     required VoidCallback onTap,
   }) {
     return ListTile(
       leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
       title: Text(title),
-      subtitle: Text('${time.toString().padLeft(2, '0')}:00 Uhr'),
+      subtitle: Text('${time.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} Uhr'),
       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
       onTap: onTap,
     );

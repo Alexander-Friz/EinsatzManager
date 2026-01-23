@@ -5,13 +5,17 @@ class ThemeNotifier extends ChangeNotifier {
   bool _isDarkMode = false;
   bool _isAutoScheduleEnabled = false;
   int _darkModeStartHour = 21;
+  int _darkModeStartMinute = 0;
   int _darkModeEndHour = 6;
+  int _darkModeEndMinute = 0;
   Timer? _scheduleTimer;
 
   bool get isDarkMode => _isDarkMode;
   bool get isAutoScheduleEnabled => _isAutoScheduleEnabled;
   int get darkModeStartHour => _darkModeStartHour;
+  int get darkModeStartMinute => _darkModeStartMinute;
   int get darkModeEndHour => _darkModeEndHour;
+  int get darkModeEndMinute => _darkModeEndMinute;
 
   void setDarkMode(bool value) {
     _isDarkMode = value;
@@ -29,16 +33,18 @@ class ThemeNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setDarkModeStartHour(int hour) {
+  void setDarkModeStartTime(int hour, int minute) {
     _darkModeStartHour = hour;
+    _darkModeStartMinute = minute;
     if (_isAutoScheduleEnabled) {
       _checkAndApplySchedule();
     }
     notifyListeners();
   }
 
-  void setDarkModeEndHour(int hour) {
+  void setDarkModeEndTime(int hour, int minute) {
     _darkModeEndHour = hour;
+    _darkModeEndMinute = minute;
     if (_isAutoScheduleEnabled) {
       _checkAndApplySchedule();
     }
@@ -47,17 +53,19 @@ class ThemeNotifier extends ChangeNotifier {
 
   void _checkAndApplySchedule() {
     final now = DateTime.now();
-    final hour = now.hour;
+    final currentMinutes = now.hour * 60 + now.minute;
+    final startMinutes = _darkModeStartHour * 60 + _darkModeStartMinute;
+    final endMinutes = _darkModeEndHour * 60 + _darkModeEndMinute;
     
     bool shouldBeDarkMode;
     
     // Dark mode zwischen eingestellter Startzeit und Endzeit
-    if (_darkModeStartHour < _darkModeEndHour) {
+    if (startMinutes < endMinutes) {
       // Normal: z.B. 14:00 - 18:00
-      shouldBeDarkMode = hour >= _darkModeStartHour && hour < _darkModeEndHour;
+      shouldBeDarkMode = currentMinutes >= startMinutes && currentMinutes < endMinutes;
     } else {
       // Über Mitternacht: z.B. 21:00 - 06:00
-      shouldBeDarkMode = hour >= _darkModeStartHour || hour < _darkModeEndHour;
+      shouldBeDarkMode = currentMinutes >= startMinutes || currentMinutes < endMinutes;
     }
     
     if (_isDarkMode != shouldBeDarkMode) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/archive_notifier.dart';
 import '../providers/personnel_notifier.dart';
+import '../services/pdf_service.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -136,7 +137,39 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return monthNames[month - 1];
   }
 
+  Future<void> _exportToPdf(BuildContext context) async {
+    final archiveNotifier = context.read<ArchiveNotifier>();
+    final personnelNotifier = context.read<PersonnelNotifier>();
 
+    final operations = archiveNotifier.archivedOperations;
+    final personnel = personnelNotifier.personnelList;
+    final operationsPerMonth = _getOperationsPerMonth(operations);
+    final operationTypeStats = _getOperationTypeStats(operations);
+    final dayNightStats = _getDayNightStats(operations);
+    final trainingStats = _getPersonnelByTraining(personnel);
+    final topPersonnel = _getTopPersonnel(operations, personnel);
+
+    try {
+      await PdfService.generateStatisticsPdf(
+        selectedYear: _selectedYear,
+        operationsPerMonth: operationsPerMonth,
+        operationTypeStats: operationTypeStats,
+        dayNightStats: dayNightStats,
+        trainingStats: trainingStats,
+        topPersonnel: topPersonnel,
+        totalPersonnel: personnel.length,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler beim Erstellen der PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
 
 
@@ -146,6 +179,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       appBar: AppBar(
         title: const Text('Statistiken'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.print),
+            tooltip: 'Als PDF exportieren',
+            onPressed: () => _exportToPdf(context),
+          ),
+        ],
       ),
       body: Consumer2<ArchiveNotifier, PersonnelNotifier>(
         builder: (context, archiveNotifier, personnelNotifier, child) {
