@@ -4,10 +4,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import '../models/operation.dart';
 import '../providers/vehicle_notifier.dart';
 import '../providers/personnel_notifier.dart';
 import '../providers/archive_notifier.dart';
+import '../services/audio_recorder_service.dart';
 
 class OperationPlannerScreen extends StatefulWidget {
   final Operation initialOperation;
@@ -28,6 +30,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final Set<String> _alertedTrupps = {}; // Trupps die bereits alarmiert wurden
   final Set<String> _alertedPressureChecks = {}; // Druckprüfungen die bereits Alarm gespielt haben
+  final AudioRecorderService _audioRecorderService = AudioRecorderService();
 
   @override
   void initState() {
@@ -326,24 +329,50 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          child: Column(
             children: [
               Text(
                 'Einsatzprotokoll',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               if (_isActive) ...[
-                ElevatedButton.icon(
-                  onPressed: () => _showAddProtocolEntryDialog(),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Eintrag hinzufügen'),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () => _showImagePickerDialog(),
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('Bild hinzufügen'),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showAddProtocolEntryDialog(),
+                        icon: const Icon(Icons.add, size: 20),
+                        label: const Text('Eintrag'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showImagePickerDialog(),
+                        icon: const Icon(Icons.camera_alt, size: 20),
+                        label: const Text('Bild'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showVoiceRecordingDialog(),
+                        icon: const Icon(Icons.mic, size: 20),
+                        label: const Text('Audio'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ],
@@ -412,6 +441,36 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                                   fit: BoxFit.contain,
                                   height: 250,
                                   width: double.infinity,
+                                ),
+                              ),
+                            ],
+                            if (entry.audioPath != null) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.audiotrack,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'Sprachnotiz',
+                                        style: Theme.of(context).textTheme.bodyMedium,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.play_arrow),
+                                      onPressed: () => _playAudioNote(entry.audioPath!),
+                                      tooltip: 'Abspielen',
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -558,6 +617,55 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
           duration: Duration(seconds: 2),
         ),
       );
+    }
+  }
+
+  // Sprachnotizen-Methoden
+  void _showVoiceRecordingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return _VoiceRecordingDialog(
+          audioRecorderService: _audioRecorderService,
+          onRecordingSaved: (String audioPath) {
+            setState(() {
+              _currentOperation.protocol.add(
+                ProtocolEntry(
+                  text: 'Sprachnotiz',
+                  timestamp: DateTime.now(),
+                  audioPath: audioPath,
+                ),
+              );
+            });
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Sprachnotiz gespeichert'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _playAudioNote(String audioPath) async {
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.play(DeviceFileSource(audioPath));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler beim Abspielen: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -2168,5 +2276,153 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
   void _startSecondRound(AtemschutzTrupp trupp) {
     // Zeige Druckabfrage für zweiten Durchgang
     _showPressureDialog(trupp);
+  }
+}
+
+// Dialog-Widget für Sprachaufnahme
+class _VoiceRecordingDialog extends StatefulWidget {
+  final AudioRecorderService audioRecorderService;
+  final Function(String) onRecordingSaved;
+
+  const _VoiceRecordingDialog({
+    required this.audioRecorderService,
+    required this.onRecordingSaved,
+  });
+
+  @override
+  State<_VoiceRecordingDialog> createState() => _VoiceRecordingDialogState();
+}
+
+class _VoiceRecordingDialogState extends State<_VoiceRecordingDialog> {
+  bool _isRecording = false;
+  int _recordingSeconds = 0;
+  Timer? _timer;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startRecording() async {
+    try {
+      await widget.audioRecorderService.startRecording();
+      setState(() {
+        _isRecording = true;
+        _recordingSeconds = 0;
+      });
+      
+      // Timer für Aufnahmedauer
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        setState(() {
+          _recordingSeconds++;
+        });
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler beim Starten der Aufnahme: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  void _stopRecording() async {
+    _timer?.cancel();
+    final audioPath = await widget.audioRecorderService.stopRecording();
+    
+    if (audioPath != null && mounted) {
+      widget.onRecordingSaved(audioPath);
+      Navigator.pop(context);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Fehler beim Speichern der Aufnahme'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      Navigator.pop(context);
+    }
+  }
+
+  void _cancelRecording() async {
+    _timer?.cancel();
+    await widget.audioRecorderService.cancelRecording();
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  String _formatDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Sprachnotiz aufnehmen'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_isRecording) ...[
+            Icon(
+              Icons.fiber_manual_record,
+              color: Colors.red,
+              size: 64,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _formatDuration(_recordingSeconds),
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            const Text('Aufnahme läuft...'),
+          ] else ...[
+            const Icon(
+              Icons.mic,
+              size: 64,
+              color: Colors.grey,
+            ),
+            const SizedBox(height: 16),
+            const Text('Bereit zum Aufnehmen'),
+          ],
+        ],
+      ),
+      actions: [
+        if (!_isRecording) ...[
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Abbrechen'),
+          ),
+          ElevatedButton.icon(
+            onPressed: _startRecording,
+            icon: const Icon(Icons.fiber_manual_record),
+            label: const Text('Aufnahme starten'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ] else ...[
+          TextButton(
+            onPressed: _cancelRecording,
+            child: const Text('Verwerfen'),
+          ),
+          ElevatedButton.icon(
+            onPressed: _stopRecording,
+            icon: const Icon(Icons.stop),
+            label: const Text('Speichern'),
+          ),
+        ],
+      ],
+    );
   }
 }

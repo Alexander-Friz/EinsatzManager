@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../providers/vehicle_notifier.dart';
-import '../services/notification_service.dart';
+import '../providers/message_notifier.dart';
 
 const List<String> availableFahrzeugklassen = [
   'Loeschfahrzeug',
@@ -436,15 +436,16 @@ class _FleetScreenState extends State<FleetScreen> {
                           .read<VehicleNotifier>()
                           .addVehicle(newVehicle);
 
-                      // Prüfe auf abgelaufene TÜVs und sende Benachrichtigungen
-                      final notificationService = NotificationService();
-                      if (newVehicle.isTuevExpiredNow) {
-                        await notificationService.showTuevWarning(
-                            newVehicle.funkrufname, 'TÜV');
+                      // Prüfe auf abgelaufene TÜVs und sende Nachrichten ins Zentrum
+                      if (newVehicle.isTuevExpiredNow && context.mounted) {
+                        await context
+                            .read<MessageNotifier>()
+                            .addTuevWarning(newVehicle.funkrufname, 'TÜV');
                       }
-                      if (newVehicle.isFeuerwehrTuevExpiredNow) {
-                        await notificationService.showTuevWarning(
-                            newVehicle.funkrufname, 'Feuerwehr-TÜV');
+                      if (newVehicle.isFeuerwehrTuevExpiredNow && context.mounted) {
+                        await context
+                            .read<MessageNotifier>()
+                            .addTuevWarning(newVehicle.funkrufname, 'Feuerwehr-TÜV');
                       }
                     } else {
                       final updatedVehicle = Vehicle(
@@ -462,15 +463,16 @@ class _FleetScreenState extends State<FleetScreen> {
                           .read<VehicleNotifier>()
                           .updateVehicle(index, updatedVehicle);
 
-                      // Prüfe auf abgelaufene TÜVs und sende Benachrichtigungen
-                      final notificationService = NotificationService();
-                      if (updatedVehicle.isTuevExpiredNow) {
-                        await notificationService.showTuevWarning(
-                            updatedVehicle.funkrufname, 'TÜV');
+                      // Prüfe auf abgelaufene TÜVs und sende Nachrichten ins Zentrum
+                      if (updatedVehicle.isTuevExpiredNow && context.mounted) {
+                        await context
+                            .read<MessageNotifier>()
+                            .addTuevWarning(updatedVehicle.funkrufname, 'TÜV');
                       }
-                      if (updatedVehicle.isFeuerwehrTuevExpiredNow) {
-                        await notificationService.showTuevWarning(
-                            updatedVehicle.funkrufname, 'Feuerwehr-TÜV');
+                      if (updatedVehicle.isFeuerwehrTuevExpiredNow && context.mounted) {
+                        await context
+                            .read<MessageNotifier>()
+                            .addTuevWarning(updatedVehicle.funkrufname, 'Feuerwehr-TÜV');
                       }
                     }
 

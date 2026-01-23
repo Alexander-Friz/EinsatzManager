@@ -109,9 +109,15 @@ class _MessageCenterScreenState extends State<MessageCenterScreen> {
                         trailing: PopupMenuButton<String>(
                           onSelected: (value) {
                             if (value == 'mark') {
-                              context
-                                  .read<MessageNotifier>()
-                                  .markAsRead(message.id);
+                              if (message.isRead) {
+                                context
+                                    .read<MessageNotifier>()
+                                    .markAsUnread(message.id);
+                              } else {
+                                context
+                                    .read<MessageNotifier>()
+                                    .markAsRead(message.id);
+                              }
                             } else if (value == 'delete') {
                               _deleteMessage(context, message.id);
                             }

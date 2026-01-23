@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../providers/personnel_notifier.dart';
-import '../services/notification_service.dart';
+import '../providers/message_notifier.dart';
 
 const List<String> availableLehrgaenge = [
   'Truppmann',
@@ -520,10 +520,11 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                           .read<PersonnelNotifier>()
                           .addPersonal(newPerson);
 
-                      // Prüfe auf abgelaufene Untersuchung und sende Benachrichtigung
-                      if (newPerson.agtUntersuchungAbgelaufen) {
-                        final notificationService = NotificationService();
-                        await notificationService.showAGTWarning(newPerson.name);
+                      // Prüfe auf abgelaufene Untersuchung und sende Nachricht ins Zentrum
+                      if (newPerson.agtUntersuchungAbgelaufen && context.mounted) {
+                        await context
+                            .read<MessageNotifier>()
+                            .addAGTExaminationWarning(newPerson.name);
                       }
                     } else {
                       // Bestehendes Personal aktualisieren
@@ -545,10 +546,11 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                           .read<PersonnelNotifier>()
                           .updatePersonal(index, updatedPerson);
 
-                      // Prüfe auf abgelaufene Untersuchung und sende Benachrichtigung
-                      if (updatedPerson.agtUntersuchungAbgelaufen) {
-                        final notificationService = NotificationService();
-                        await notificationService.showAGTWarning(updatedPerson.name);
+                      // Prüfe auf abgelaufene Untersuchung und sende Nachricht ins Zentrum
+                      if (updatedPerson.agtUntersuchungAbgelaufen && context.mounted) {
+                        await context
+                            .read<MessageNotifier>()
+                            .addAGTExaminationWarning(updatedPerson.name);
                       }
                     }
 

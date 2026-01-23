@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'package:logger/logger.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../providers/archive_notifier.dart';
 import '../models/operation.dart' show Operation, ProtocolEntry;
 
@@ -15,6 +16,8 @@ class PastOperationsScreen extends StatefulWidget {
 }
 
 class _PastOperationsScreenState extends State<PastOperationsScreen> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
   @override
   void initState() {
     super.initState();
@@ -329,6 +332,33 @@ class _PastOperationsScreenState extends State<PastOperationsScreen> {
               ),
               if (entry.imageBase64 != null && entry.imageBase64!.isNotEmpty)
                 _buildImagePreview(entry.imageBase64!),
+              if (entry.audioPath != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.audiotrack,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text('Sprachnotiz'),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.play_arrow),
+                        onPressed: () => _playAudioNote(entry.audioPath!),
+                        tooltip: 'Abspielen',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -410,6 +440,23 @@ class _PastOperationsScreenState extends State<PastOperationsScreen> {
           ),
         ),
       );
+    }
+  }
+
+  Future<void> _playAudioNote(String audioPath) async {
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.play(DeviceFileSource(audioPath));
+    } catch (e) {
+      logger.e('Fehler beim Abspielen der Sprachnotiz: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler beim Abspielen: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 }

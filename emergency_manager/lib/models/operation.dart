@@ -2,11 +2,13 @@ class ProtocolEntry {
   final String text;
   final DateTime timestamp;
   final String? imageBase64; // Bild als Base64 kodierter String (optional)
+  final String? audioPath; // Pfad zur Audioaufnahme (optional)
 
   ProtocolEntry({
     required this.text,
     required this.timestamp,
     this.imageBase64,
+    this.audioPath,
   });
 
   Map<String, dynamic> toJson() {
@@ -14,6 +16,7 @@ class ProtocolEntry {
       'text': text,
       'timestamp': timestamp.toIso8601String(),
       'imageBase64': imageBase64,
+      'audioPath': audioPath,
     };
   }
 
@@ -22,6 +25,7 @@ class ProtocolEntry {
       text: json['text'] as String,
       timestamp: DateTime.parse(json['timestamp'] as String),
       imageBase64: json['imageBase64'] as String?,
+      audioPath: json['audioPath'] as String?,
     );
   }
 }
@@ -29,7 +33,8 @@ class ProtocolEntry {
 class AtemschutzTrupp {
   final String id; // Eindeutige ID für den Trupp
   final String name; // Name des Trupps (z.B. "Angriffstrupp", "Wassertrupp")
-  final String? vehicleId; // Fahzeug-ID wenn fahrzeuggebunden, null wenn Großschadenslagen
+  final String?
+  vehicleId; // Fahzeug-ID wenn fahrzeuggebunden, null wenn Großschadenslagen
   final String person1Id; // ID der ersten Person
   final String person2Id; // ID der zweiten Person
   final DateTime createdAt; // Zeitstempel für Sortierung
@@ -57,8 +62,10 @@ class AtemschutzTrupp {
     this.pressure20MinChecked = false,
     this.isCompleted = false,
     this.roundNumber = 1,
-  })  : id = id ?? '${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecond)}',
-        createdAt = createdAt ?? DateTime.now();
+  }) : id =
+           id ??
+           '${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecond)}',
+       createdAt = createdAt ?? DateTime.now();
 
   bool get isVehicleLinked => vehicleId != null;
 
@@ -88,9 +95,15 @@ class AtemschutzTrupp {
       vehicleId: json['vehicleId'] as String?,
       person1Id: json['person1Id'] as String,
       person2Id: json['person2Id'] as String,
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : null,
-      startTime: json['startTime'] != null ? DateTime.parse(json['startTime'] as String) : null,
-      pausedDuration: json['pausedDuration'] != null ? Duration(seconds: json['pausedDuration'] as int) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
+      startTime: json['startTime'] != null
+          ? DateTime.parse(json['startTime'] as String)
+          : null,
+      pausedDuration: json['pausedDuration'] != null
+          ? Duration(seconds: json['pausedDuration'] as int)
+          : null,
       lowestPressure: json['lowestPressure'] as int?,
       isActive: json['isActive'] as bool? ?? false,
       pressure10MinChecked: json['pressure10MinChecked'] as bool? ?? false,
@@ -99,7 +112,7 @@ class AtemschutzTrupp {
       roundNumber: json['roundNumber'] as int? ?? 1,
     );
   }
-  
+
   AtemschutzTrupp copyWith({
     String? name,
     String? vehicleId,
@@ -135,7 +148,8 @@ class AtemschutzTrupp {
 }
 
 class RespiratoryTrupp {
-  final String name; // Name des Trupps (z.B. "Angriffstrupp", "Wassertrupp" oder GS-Name)
+  final String
+  name; // Name des Trupps (z.B. "Angriffstrupp", "Wassertrupp" oder GS-Name)
   final String? person1Id; // Erste Person im Trupp (optional)
   final String? person2Id; // Zweite Person im Trupp (optional)
   final DateTime createdAt; // Zeitstempel für Sortierung
@@ -158,10 +172,15 @@ class RespiratoryTrupp {
 
   factory RespiratoryTrupp.fromJson(Map<String, dynamic> json) {
     return RespiratoryTrupp(
-      name: json['name'] as String? ?? json['angriffstrupp'] as String? ?? 'Unbekannt',
+      name:
+          json['name'] as String? ??
+          json['angriffstrupp'] as String? ??
+          'Unbekannt',
       person1Id: json['person1Id'] as String?,
       person2Id: json['person2Id'] as String?,
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
     );
   }
 }
@@ -206,7 +225,9 @@ class Operation {
       'vehiclePersonnelAssignment': vehiclePersonnelAssignment,
       'einsatzTime': einsatzTime.toIso8601String(),
       'protocol': protocol.map((entry) => entry.toJson()).toList(),
-      'atemschutzTrupps': atemschutzTrupps.map((trupp) => trupp.toJson()).toList(),
+      'atemschutzTrupps': atemschutzTrupps
+          .map((trupp) => trupp.toJson())
+          .toList(),
       'respiratoryActive': respiratoryActive,
       'vehicleBreathingApparatus': vehicleBreathingApparatus.map(
         (key, value) => MapEntry(key, value.toJson()),
@@ -217,31 +238,38 @@ class Operation {
   factory Operation.fromJson(Map<String, dynamic> json) {
     final protocolList = json['protocol'] as List?;
     final atemschutzTruppsList = json['atemschutzTrupps'] as List?;
-    final breathingApparatusList = json['vehicleBreathingApparatus'] as Map? ?? {};
+    final breathingApparatusList =
+        json['vehicleBreathingApparatus'] as Map? ?? {};
     return Operation(
       id: json['id'],
       alarmstichwort: json['alarmstichwort'],
       adresseOrGps: json['adresseOrGps'],
       vehicleIds: List<String>.from(json['vehicleIds'] ?? []),
-      vehicleNames: List<String>.from(json['vehicleNames'] ?? json['vehicleIds'] ?? []),
+      vehicleNames: List<String>.from(
+        json['vehicleNames'] ?? json['vehicleIds'] ?? [],
+      ),
       vehiclePersonnelAssignment: Map<String, Map<String, String>>.from(
         (json['vehiclePersonnelAssignment'] as Map? ?? {}).map(
-          (key, value) => MapEntry(
-            key,
-            Map<String, String>.from(value as Map? ?? {}),
-          ),
+          (key, value) =>
+              MapEntry(key, Map<String, String>.from(value as Map? ?? {})),
         ),
       ),
       einsatzTime: DateTime.parse(json['einsatzTime'] as String),
       protocol: protocolList != null
           ? protocolList
-              .map((entry) => ProtocolEntry.fromJson(entry as Map<String, dynamic>))
-              .toList()
+                .map(
+                  (entry) =>
+                      ProtocolEntry.fromJson(entry as Map<String, dynamic>),
+                )
+                .toList()
           : [],
       atemschutzTrupps: atemschutzTruppsList != null
           ? atemschutzTruppsList
-              .map((entry) => AtemschutzTrupp.fromJson(entry as Map<String, dynamic>))
-              .toList()
+                .map(
+                  (entry) =>
+                      AtemschutzTrupp.fromJson(entry as Map<String, dynamic>),
+                )
+                .toList()
           : [],
       respiratoryActive: json['respiratoryActive'] as bool? ?? false,
       vehicleBreathingApparatus: Map<String, RespiratoryTrupp>.from(

@@ -5,11 +5,13 @@ import 'screens/settings_screen.dart';
 import 'screens/operation_create_screen.dart';
 import 'screens/device_manager_screen.dart';
 import 'screens/past_operations_screen.dart';
+import 'screens/message_center_screen.dart';
 import 'providers/theme_notifier.dart';
 import 'providers/personnel_notifier.dart';
 import 'providers/message_notifier.dart';
 import 'providers/vehicle_notifier.dart';
 import 'providers/archive_notifier.dart';
+import 'providers/equipment_notifier.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +24,7 @@ void main() async {
         ChangeNotifierProvider(create: (context) => MessageNotifier()),
         ChangeNotifierProvider(create: (context) => VehicleNotifier()),
         ChangeNotifierProvider(create: (context) => ArchiveNotifier()),
+        ChangeNotifierProvider(create: (context) => EquipmentNotifier()),
       ],
       child: const EmergencyManagerApp(),
     ),
@@ -90,6 +93,53 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     final vehicleNotifier = context.read<VehicleNotifier>();
     await vehicleNotifier.loadVehicles();
+
+    // Lade Geräte
+    if (!mounted) return;
+    final equipmentNotifier = context.read<EquipmentNotifier>();
+    await equipmentNotifier.loadEquipment();
+
+    // Lade Nachrichten
+    if (!mounted) return;
+    final messageNotifier = context.read<MessageNotifier>();
+    await messageNotifier.loadMessages();
+
+    // Prüfe auf abgelaufene Untersuchungen, TÜVs und Geräteprüfungen
+    if (!mounted) return;
+    await _checkForExpiredItems();
+  }
+
+  Future<void> _checkForExpiredItems() async {
+    final messageNotifier = context.read<MessageNotifier>();
+    final personnelNotifier = context.read<PersonnelNotifier>();
+    final vehicleNotifier = context.read<VehicleNotifier>();
+    final equipmentNotifier = context.read<EquipmentNotifier>();
+
+    // Prüfe Personal auf abgelaufene AGT-Untersuchungen
+    for (final person in personnelNotifier.personnelList) {
+      if (person.agtUntersuchungAbgelaufen) {
+        await messageNotifier.addAGTExaminationWarning(person.name);
+      }
+    }
+
+    // Prüfe Fahrzeuge auf abgelaufene TÜVs
+    for (final vehicle in vehicleNotifier.vehicleList) {
+      if (vehicle.isTuevExpiredNow) {
+        await messageNotifier.addTuevWarning(vehicle.funkrufname, 'TÜV');
+      }
+      if (vehicle.isFeuerwehrTuevExpiredNow) {
+        await messageNotifier.addTuevWarning(
+            vehicle.funkrufname, 'Feuerwehr-TÜV');
+      }
+    }
+
+    // Prüfe Geräte auf abgelaufene Prüfungen
+    for (final equipment in equipmentNotifier.equipmentList) {
+      if (equipment.isInspectionExpired) {
+        await messageNotifier.addEquipmentInspectionWarning(
+            equipment.name, equipment.number);
+      }
+    }
   }
 
   @override
@@ -111,6 +161,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () {
                   themeNotifier.setDarkMode(!themeNotifier.isDarkMode);
                 },
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Einstellungen',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
               );
             },
           ),
@@ -182,17 +244,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
-            _buildMenuTile(
-              context,
-              icon: Icons.settings,
-              title: 'Einstellungen',
-              color: Colors.grey,
-              onTap: () {
-                Navigator.push(
+            Consumer<MessageNotifier>(
+              builder: (context, messageNotifier, child) {
+                final unreadCount = messageNotifier.unreadCount;
+                return _buildMenuTile(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const SettingsScreen(),
-                  ),
+                  icon: Icons.message,
+                  title: 'Nachrichtenzentrum',
+                  subtitle: unreadCount > 0 ? '$unreadCount ungelesen' : null,
+                  color: Colors.blue,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MessageCenterScreen(),
+                      ),
+                    );
+                  },
                 );
               },
             ),
@@ -216,6 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
     BuildContext context, {
     required IconData icon,
     required String title,
+    String? subtitle,
     required Color color,
     required VoidCallback onTap,
     bool isLarge = false,
@@ -263,6 +332,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
             ],
           ),
         ),

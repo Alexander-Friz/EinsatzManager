@@ -96,6 +96,15 @@ class MessageNotifier extends ChangeNotifier {
     }
   }
 
+  Future<void> markAsUnread(String messageId) async {
+    final index = _messages.indexWhere((m) => m.id == messageId);
+    if (index >= 0) {
+      _messages[index].isRead = false;
+      await _saveMessages();
+      notifyListeners();
+    }
+  }
+
   Future<void> deleteMessage(String messageId) async {
     _messages.removeWhere((m) => m.id == messageId);
     await _saveMessages();
@@ -110,6 +119,13 @@ class MessageNotifier extends ChangeNotifier {
 
   // AGT-spezifische Nachricht hinzufügen
   Future<void> addAGTExaminationWarning(String personName) async {
+    // Prüfe ob bereits eine Nachricht für diese Person existiert
+    final exists = _messages.any((m) =>
+        m.type == 'warning' &&
+        m.title == 'AGT Untersuchung abgelaufen' &&
+        m.content.contains(personName));
+    if (exists) return;
+
     final message = Message(
       id: DateTime.now().toString(),
       title: 'AGT Untersuchung abgelaufen',
@@ -123,11 +139,38 @@ class MessageNotifier extends ChangeNotifier {
 
   // TÜV-spezifische Nachricht hinzufügen
   Future<void> addTuevWarning(String vehicleName, String tuevType) async {
+    // Prüfe ob bereits eine Nachricht für dieses Fahrzeug existiert
+    final exists = _messages.any((m) =>
+        m.type == 'warning' &&
+        m.title == '$tuevType von $vehicleName abgelaufen');
+    if (exists) return;
+
     final message = Message(
       id: DateTime.now().toString(),
       title: '$tuevType von $vehicleName abgelaufen',
       content:
           'Der $tuevType des Fahrzeugs $vehicleName ist abgelaufen. Bitte umgehend erneuern!',
+      timestamp: DateTime.now(),
+      type: 'warning',
+    );
+    await addMessage(message);
+  }
+
+  // Geräteprüfung-spezifische Nachricht hinzufügen
+  Future<void> addEquipmentInspectionWarning(
+      String equipmentName, String equipmentNumber) async {
+    // Prüfe ob bereits eine Nachricht für dieses Gerät existiert
+    final exists = _messages.any((m) =>
+        m.type == 'warning' &&
+        m.title == 'Geräteprüfung abgelaufen' &&
+        m.content.contains(equipmentNumber));
+    if (exists) return;
+
+    final message = Message(
+      id: DateTime.now().toString(),
+      title: 'Geräteprüfung abgelaufen',
+      content:
+          'Die Prüfung von $equipmentName (Nr. $equipmentNumber) ist abgelaufen. Bitte umgehend prüfen!',
       timestamp: DateTime.now(),
       type: 'warning',
     );
