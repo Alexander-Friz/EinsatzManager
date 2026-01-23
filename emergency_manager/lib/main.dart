@@ -13,6 +13,7 @@ import 'providers/archive_notifier.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
   runApp(
     MultiProvider(
       providers: [

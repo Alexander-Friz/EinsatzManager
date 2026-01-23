@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
+import 'dart:io';
 import '../providers/vehicle_notifier.dart';
 import '../services/notification_service.dart';
 
@@ -77,10 +80,21 @@ class _FleetScreenState extends State<FleetScreen> {
                       margin:
                           const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: ListTile(
-                        leading: Icon(
-                          Icons.fire_truck,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                        leading: vehicle.imageBase64 != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.memory(
+                                  base64Decode(vehicle.imageBase64!),
+                                  width: 56,
+                                  height: 56,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : Icon(
+                                Icons.fire_truck,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: 40,
+                              ),
                         title: Text(vehicle.funkrufname),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,6 +179,7 @@ class _FleetScreenState extends State<FleetScreen> {
     List<String> selectedTrupps = List.from(vehicle?.trupps ?? []);
     DateTime? tuevDate = vehicle?.tuevDate;
     DateTime? feuerwehrTuevDate = vehicle?.feuerwehrTuevDate;
+    String? imageBase64 = vehicle?.imageBase64;
 
     showDialog(
       context: context,
@@ -312,6 +327,79 @@ class _FleetScreenState extends State<FleetScreen> {
                         }
                       },
                     ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Fahrzeugbild:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    if (imageBase64 != null)
+                      Container(
+                        height: 200,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(
+                            base64Decode(imageBase64!),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            final picker = ImagePicker();
+                            final XFile? image = await picker.pickImage(
+                              source: ImageSource.camera,
+                              imageQuality: 70,
+                            );
+                            if (image != null) {
+                              final bytes = await File(image.path).readAsBytes();
+                              setState(() {
+                                imageBase64 = base64Encode(bytes);
+                              });
+                            }
+                          },
+                          icon: const Icon(Icons.camera_alt),
+                          label: const Text('Kamera'),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            final picker = ImagePicker();
+                            final XFile? image = await picker.pickImage(
+                              source: ImageSource.gallery,
+                              imageQuality: 70,
+                            );
+                            if (image != null) {
+                              final bytes = await File(image.path).readAsBytes();
+                              setState(() {
+                                imageBase64 = base64Encode(bytes);
+                              });
+                            }
+                          },
+                          icon: const Icon(Icons.photo_library),
+                          label: const Text('Galerie'),
+                        ),
+                        if (imageBase64 != null)
+                          IconButton(
+                            onPressed: () {
+                              setState(() {
+                                imageBase64 = null;
+                              });
+                            },
+                            icon: const Icon(Icons.delete),
+                            color: Colors.red,
+                            tooltip: 'Bild entfernen',
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -342,6 +430,7 @@ class _FleetScreenState extends State<FleetScreen> {
                         trupps: selectedTrupps,
                         tuevDate: tuevDate,
                         feuerwehrTuevDate: feuerwehrTuevDate,
+                        imageBase64: imageBase64,
                       );
                       await context
                           .read<VehicleNotifier>()
@@ -367,6 +456,7 @@ class _FleetScreenState extends State<FleetScreen> {
                         trupps: selectedTrupps,
                         tuevDate: tuevDate,
                         feuerwehrTuevDate: feuerwehrTuevDate,
+                        imageBase64: imageBase64,
                       );
                       await context
                           .read<VehicleNotifier>()

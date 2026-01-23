@@ -14,6 +14,7 @@ class PersonalData {
   final DateTime? g263Datum;
   final DateTime? untersuchungAblaufdatum;
   final bool inaktivAgt;
+  final String? imageBase64;
 
   PersonalData({
     required this.id,
@@ -27,6 +28,7 @@ class PersonalData {
     this.g263Datum,
     this.untersuchungAblaufdatum,
     this.inaktivAgt = false,
+    this.imageBase64,
   });
 
   bool get hasAGTLehrgang => lehrgaenge.contains('Atemschutzgeräteträger');
@@ -49,6 +51,7 @@ class PersonalData {
       'g263Datum': g263Datum?.toIso8601String(),
       'untersuchungAblaufdatum': untersuchungAblaufdatum?.toIso8601String(),
       'inaktivAgt': inaktivAgt,
+      'imageBase64': imageBase64,
     };
   }
 
@@ -71,6 +74,7 @@ class PersonalData {
           ? DateTime.parse(json['untersuchungAblaufdatum'] as String)
           : null,
       inaktivAgt: json['inaktivAgt'] as bool? ?? false,
+      imageBase64: json['imageBase64'] as String?,
     );
   }
 
@@ -79,6 +83,7 @@ class PersonalData {
     DateTime? g263Datum,
     DateTime? untersuchungAblaufdatum,
     bool? inaktivAgt,
+    String? imageBase64,
   }) {
     return PersonalData(
       id: id,
@@ -93,6 +98,7 @@ class PersonalData {
       untersuchungAblaufdatum:
           untersuchungAblaufdatum ?? this.untersuchungAblaufdatum,
       inaktivAgt: inaktivAgt ?? this.inaktivAgt,
+      imageBase64: imageBase64 ?? this.imageBase64,
     );
   }
 }

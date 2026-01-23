@@ -2,7 +2,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
-  late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
+  FlutterLocalNotificationsPlugin? flutterLocalNotificationsPlugin;
+  bool _isInitialized = false;
 
   factory NotificationService() {
     return _instance;
@@ -10,33 +11,42 @@ class NotificationService {
 
   NotificationService._internal();
 
-  Future<void> initialize() async {
-    flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  Future<void> _ensureInitialized() async {
+    if (_isInitialized) return;
+    
+    try {
+      flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
-    // Android Initialisierung
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('ic_launcher');
+      // Android Initialisierung
+      const AndroidInitializationSettings initializationSettingsAndroid =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    // iOS Initialisierung
-    final DarwinInitializationSettings initializationSettingsIOS =
-        DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+      // iOS Initialisierung
+      final DarwinInitializationSettings initializationSettingsIOS =
+          DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
 
-    final InitializationSettings initializationSettings =
-        InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
+      final InitializationSettings initializationSettings =
+          InitializationSettings(
+        android: initializationSettingsAndroid,
+        iOS: initializationSettingsIOS,
+      );
 
-    await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse notificationResponse) async {
-        // Handle notification response
-      },
-    );
+      await flutterLocalNotificationsPlugin!.initialize(
+        initializationSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse notificationResponse) async {
+          // Handle notification response
+        },
+      );
+      
+      _isInitialized = true;
+    } catch (e) {
+      // Benachrichtigungen konnten nicht initialisiert werden
+      print('Notification initialization failed: $e');
+    }
 
     // Berechtigungen müssen in AndroidManifest.xml konfiguriert werden
   }
@@ -47,6 +57,9 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
+    await _ensureInitialized();
+    if (!_isInitialized) return;
+    
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
       'emergency_manager_channel',
@@ -71,7 +84,7 @@ class NotificationService {
       iOS: iOSPlatformChannelSpecifics,
     );
 
-    await flutterLocalNotificationsPlugin.show(
+    await flutterLocalNotificationsPlugin!.show(
       id,
       title,
       body,

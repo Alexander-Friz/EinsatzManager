@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
+import 'dart:io';
 import '../providers/personnel_notifier.dart';
 import '../services/notification_service.dart';
 
@@ -95,9 +98,20 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                       margin:
                           const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: ListTile(
-                        leading: CircleAvatar(
-                          child: Text(person.name[0]),
-                        ),
+                        leading: person.imageBase64 != null
+                            ? CircleAvatar(
+                                radius: 28,
+                                backgroundImage: MemoryImage(
+                                  base64Decode(person.imageBase64!),
+                                ),
+                              )
+                            : CircleAvatar(
+                                radius: 28,
+                                child: Text(
+                                  person.name[0],
+                                  style: const TextStyle(fontSize: 20),
+                                ),
+                              ),
                         title: Text(person.name),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,6 +194,7 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
     DateTime? g263Datum = person?.g263Datum;
     DateTime? untersuchungAblaufdatum = person?.untersuchungAblaufdatum;
     bool inaktivAgt = person?.inaktivAgt ?? false;
+    String? imageBase64 = person?.imageBase64;
 
     showDialog(
       context: context,
@@ -378,7 +393,80 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                         },
                       ),
                     ],
-                  ],
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Personenbild:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  if (imageBase64 != null)
+                    Container(
+                      height: 200,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(
+                          base64Decode(imageBase64!),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          final picker = ImagePicker();
+                          final XFile? image = await picker.pickImage(
+                            source: ImageSource.camera,
+                            imageQuality: 70,
+                          );
+                          if (image != null) {
+                            final bytes = await File(image.path).readAsBytes();
+                            setState(() {
+                              imageBase64 = base64Encode(bytes);
+                            });
+                          }
+                        },
+                        icon: const Icon(Icons.camera_alt),
+                        label: const Text('Kamera'),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          final picker = ImagePicker();
+                          final XFile? image = await picker.pickImage(
+                            source: ImageSource.gallery,
+                            imageQuality: 70,
+                          );
+                          if (image != null) {
+                            final bytes = await File(image.path).readAsBytes();
+                            setState(() {
+                              imageBase64 = base64Encode(bytes);
+                            });
+                          }
+                        },
+                        icon: const Icon(Icons.photo_library),
+                        label: const Text('Galerie'),
+                      ),
+                      if (imageBase64 != null)
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              imageBase64 = null;
+                            });
+                          },
+                          icon: const Icon(Icons.delete),
+                          color: Colors.red,
+                          tooltip: 'Bild entfernen',
+                        ),
+                    ],
+                  ),
+                ],
                 ),
               ),
               actions: [
@@ -426,6 +514,7 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                         g263Datum: g263Datum,
                         untersuchungAblaufdatum: untersuchungAblaufdatum,
                         inaktivAgt: inaktivAgt,
+                        imageBase64: imageBase64,
                       );
                       await context
                           .read<PersonnelNotifier>()
@@ -450,6 +539,7 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                         g263Datum: g263Datum,
                         untersuchungAblaufdatum: untersuchungAblaufdatum,
                         inaktivAgt: inaktivAgt,
+                        imageBase64: imageBase64,
                       );
                       await context
                           .read<PersonnelNotifier>()

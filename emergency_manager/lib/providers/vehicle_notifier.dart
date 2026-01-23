@@ -11,6 +11,7 @@ class Vehicle {
   final List<String> trupps;
   final DateTime? tuevDate;
   final DateTime? feuerwehrTuevDate;
+  final String? imageBase64;
 
   Vehicle({
     required this.id,
@@ -21,6 +22,7 @@ class Vehicle {
     required this.trupps,
     this.tuevDate,
     this.feuerwehrTuevDate,
+    this.imageBase64,
   });
 
   // Überprüfung, ob ein TÜV abgelaufen ist
@@ -42,6 +44,7 @@ class Vehicle {
       'trupps': trupps,
       'tuevDate': tuevDate?.toIso8601String(),
       'feuerwehrTuevDate': feuerwehrTuevDate?.toIso8601String(),
+      'imageBase64': imageBase64,
     };
   }
 
@@ -59,6 +62,7 @@ class Vehicle {
       feuerwehrTuevDate: json['feuerwehrTuevDate'] != null
           ? DateTime.parse(json['feuerwehrTuevDate'] as String)
           : null,
+      imageBase64: json['imageBase64'] as String?,
     );
   }
 
@@ -71,6 +75,7 @@ class Vehicle {
     List<String>? trupps,
     DateTime? tuevDate,
     DateTime? feuerwehrTuevDate,
+    String? imageBase64,
   }) {
     return Vehicle(
       id: id ?? this.id,
@@ -81,6 +86,7 @@ class Vehicle {
       trupps: trupps ?? this.trupps,
       tuevDate: tuevDate ?? this.tuevDate,
       feuerwehrTuevDate: feuerwehrTuevDate ?? this.feuerwehrTuevDate,
+      imageBase64: imageBase64 ?? this.imageBase64,
     );
   }
 }
