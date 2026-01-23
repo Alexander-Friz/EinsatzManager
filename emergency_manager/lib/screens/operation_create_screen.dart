@@ -92,16 +92,54 @@ class _OperationCreateScreenState extends State<OperationCreateScreen> {
   }
 
   Future<void> _getCurrentLocation() async {
+    // Zeige Loading-Indikator
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+              SizedBox(width: 12),
+              Text('GPS-Position wird ermittelt...'),
+            ],
+          ),
+          duration: Duration(seconds: 8),
+        ),
+      );
+    }
+
     try {
+      // Prüfe ob Standortdienste aktiviert sind
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Standortdienste sind deaktiviert. Bitte aktivieren Sie GPS.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
       // Prüfe auf Standortberechtigungen
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           if (mounted) {
+            ScaffoldMessenger.of(context).clearSnackBars();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Standortberechtigung verweigert. Bitte geben Sie die Adresse manuell ein.'),
+                backgroundColor: Colors.red,
                 duration: Duration(seconds: 3),
               ),
             );
@@ -112,38 +150,46 @@ class _OperationCreateScreenState extends State<OperationCreateScreen> {
 
       if (permission == LocationPermission.deniedForever) {
         if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Standortberechtigung dauerhaft verweigert. Bitte geben Sie die Adresse manuell ein.'),
-              duration: Duration(seconds: 3),
+              content: Text('Standortberechtigung dauerhaft verweigert. Bitte ändern Sie dies in den Einstellungen.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
             ),
           );
         }
         return;
       }
 
-      // Hole aktuelle Position
+      // Hole aktuelle Position mit kürzerem Timeout
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 5),
+        ),
       );
 
       if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         setState(() {
           _adresseController.text = '${position.latitude}, ${position.longitude}';
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Koordinaten erfolgreich eingetragen.'),
+            content: Text('GPS-Koordinaten erfolgreich eingetragen.'),
+            backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('GPS fehlgeschlagen: $e. Bitte geben Sie die Adresse manuell ein.'),
+            content: Text('GPS-Fehler: ${e.toString()}. Bitte Adresse manuell eingeben.'),
+            backgroundColor: Colors.red,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -389,12 +435,28 @@ class _OperationCreateScreenState extends State<OperationCreateScreen> {
               const SizedBox(height: 24),
 
               // Speichern Button
-              ElevatedButton.icon(
-                onPressed: _selectedVehicleIds.isEmpty
-                    ? null
-                    : () => _saveOperation(),
-                icon: const Icon(Icons.check),
-                label: const Text('Einsatz anlegen'),
+              SizedBox(
+                width: 250,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: _selectedVehicleIds.isEmpty
+                      ? null
+                      : () => _saveOperation(),
+                  icon: const Icon(Icons.check, size: 24),
+                  label: const Text(
+                    'Einsatz anlegen',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey,
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -630,6 +692,9 @@ class _OperationCreateScreenState extends State<OperationCreateScreen> {
             timestamp: DateTime.now(),
           ),
         ],
+        respiratoryActive: false,
+        atemschutzTrupps: const [],
+        vehicleBreathingApparatus: const {},
       );
 
       // TODO: Speichern des Einsatzes

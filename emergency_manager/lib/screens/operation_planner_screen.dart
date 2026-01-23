@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../models/operation.dart';
@@ -24,11 +25,20 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
   late Operation _currentOperation;
   final bool _isActive = true;
   int _selectedTabIndex = 0; // 0: Fahrzeuge, 1: Einsatzprotokoll, 2: Atemschutz, 3: Übersicht
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final Set<String> _alertedTrupps = {}; // Trupps die bereits alarmiert wurden
+  final Set<String> _alertedPressureChecks = {}; // Druckprüfungen die bereits Alarm gespielt haben
 
   @override
   void initState() {
     super.initState();
     _currentOperation = widget.initialOperation;
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
   }
 
   Widget _buildTabContent() {
@@ -619,19 +629,64 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                         person1Name = person1.name;
                         person2Name = person2.name;
                       } else {
-                        // GS-Trupp: person1Id/person2Id sind direkt die Namen
-                        person1Name = trupp.person1Id;
-                        person2Name = trupp.person2Id;
+                        // GS-Trupp: Prüfe ob IDs oder Namen gespeichert sind
+                        // Wenn eine Person mit dieser ID existiert, ist es eine ID
+                        final person1FromList = personnelNotifier.personnelList.firstWhere(
+                                (p) => p.id == trupp.person1Id,
+                                orElse: () => PersonalData(
+                                  id: 'unknown',
+                                  name: 'Unbekannt',
+                                  email: '',
+                                  phone: '',
+                                  position: '',
+                                  dienstgrad: '',
+                                  lehrgaenge: [],
+                                ));
+                        
+                        final person2FromList = personnelNotifier.personnelList.firstWhere(
+                                (p) => p.id == trupp.person2Id,
+                                orElse: () => PersonalData(
+                                  id: 'unknown',
+                                  name: 'Unbekannt',
+                                  email: '',
+                                  phone: '',
+                                  position: '',
+                                  dienstgrad: '',
+                                  lehrgaenge: [],
+                                ));
+                        
+                        // Wenn die Person gefunden wurde (id != 'unknown'), dann verwende den Namen
+                        // Ansonsten ist es bereits ein Name (Freitexteingabe)
+                        person1Name = person1FromList.id != 'unknown' ? person1FromList.name : trupp.person1Id;
+                        person2Name = person2FromList.id != 'unknown' ? person2FromList.name : trupp.person2Id;
                       }
                       
                       if (trupp.isVehicleLinked) {
                         // Fahrzeug-Trupp
                         final vehicle = vehicleNotifier.vehicleList
                             .firstWhere((v) => v.id == trupp.vehicleId);
+                        
+                        // Berechne ob Zeit abgelaufen ist für Styling
+                        final remainingTime = _calculateRemainingTime(trupp);
+                        final isTimeExpired = remainingTime.isNegative && trupp.isActive;
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 16),
-                          child: Padding(
+                          elevation: isTimeExpired ? 8 : 1,
+                          color: isTimeExpired ? Colors.red.shade50 : null,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: isTimeExpired ? Colors.red.shade700 : Colors.transparent,
+                              width: isTimeExpired ? 3 : 0,
+                            ),
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              color: isTimeExpired ? Colors.red.shade100 : null,
+                            ),
+                            child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -702,12 +757,31 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                               ],
                             ),
                           ),
+                          ),
                         );
                       } else {
                         // Großschadenslagen-Trupp
+                        // Berechne ob Zeit abgelaufen ist für Styling
+                        final remainingTime = _calculateRemainingTime(trupp);
+                        final isTimeExpired = remainingTime.isNegative && trupp.isActive;
+                        
                         return Card(
                           margin: const EdgeInsets.only(bottom: 16),
-                          child: Padding(
+                          elevation: isTimeExpired ? 8 : 1,
+                          color: isTimeExpired ? Colors.deepOrange.shade50 : null,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: isTimeExpired ? Colors.deepOrange.shade700 : Colors.transparent,
+                              width: isTimeExpired ? 3 : 0,
+                            ),
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              color: isTimeExpired ? Colors.deepOrange.shade100 : null,
+                            ),
+                            child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -777,6 +851,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                                 _buildTimerSection(trupp),
                               ],
                             ),
+                          ),
                           ),
                         );
                       }
@@ -1470,8 +1545,45 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
   }
 
   Widget _buildTimerSection(AtemschutzTrupp trupp) {
-    if (!trupp.isActive) {
-      // Startknopf anzeigen
+    if (trupp.isCompleted) {
+      // Einsatz beendet
+      if (trupp.roundNumber < 2) {
+        // Erster Durchgang beendet - Option für zweiten Durchgang
+        return ElevatedButton.icon(
+          onPressed: () => _startSecondRound(trupp),
+          icon: const Icon(Icons.replay),
+          label: const Text('Zweiten Durchgang starten'),
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size(double.infinity, 40),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      } else {
+        // Zweiter Durchgang beendet - kein weiterer Durchgang möglich
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.check_circle, color: Colors.green.shade700),
+              const SizedBox(width: 8),
+              Text(
+                'Einsatz abgeschlossen (2 Durchgänge)',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade700,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    } else if (trupp.startTime == null) {
+      // Noch nicht gestartet - Startknopf anzeigen
       return ElevatedButton.icon(
         onPressed: () => _showPressureDialog(trupp),
         icon: const Icon(Icons.play_arrow),
@@ -1480,14 +1592,30 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
           minimumSize: const Size(double.infinity, 40),
         ),
       );
+    } else if (!trupp.isActive) {
+      // Pausiert - Resume-Knopf anzeigen
+      return ElevatedButton.icon(
+        onPressed: () => _showResumePressureDialog(trupp),
+        icon: const Icon(Icons.play_arrow),
+        label: const Text('Fortsetzen'),
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size(double.infinity, 40),
+          backgroundColor: Colors.orange,
+        ),
+      );
     } else {
-      // Timer anzeigen
+      // Timer läuft - Anzeige mit Pause-Button
       return StreamBuilder<void>(
         stream: Stream.periodic(const Duration(seconds: 1)),
         builder: (context, snapshot) {
           final remainingTime = _calculateRemainingTime(trupp);
           final isWarning = remainingTime.inMinutes < 5;
           final isAlert = remainingTime.isNegative;
+          
+          // Prüfe ob Druckabfragen fällig sind - NACH dem Build
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _checkPressureIntervals(trupp, remainingTime);
+          });
           
           return Container(
             padding: const EdgeInsets.all(12),
@@ -1499,24 +1627,40 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                       : Colors.green.shade100,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(
-                      Icons.timer,
-                      color: isAlert 
-                          ? Colors.red.shade900 
-                          : isWarning 
-                              ? Colors.orange.shade900 
-                              : Colors.green.shade900,
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.timer,
+                          color: isAlert 
+                              ? Colors.red.shade900 
+                              : isWarning 
+                                  ? Colors.orange.shade900 
+                                  : Colors.green.shade900,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _formatDuration(remainingTime.abs()),
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: isAlert 
+                                ? Colors.red.shade900 
+                                : isWarning 
+                                    ? Colors.orange.shade900 
+                                    : Colors.green.shade900,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
                     Text(
-                      _formatDuration(remainingTime.abs()),
+                      '${trupp.lowestPressure} bar',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: isAlert 
                             ? Colors.red.shade900 
@@ -1527,17 +1671,32 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                     ),
                   ],
                 ),
-                Text(
-                  '${trupp.lowestPressure} bar',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: isAlert 
-                        ? Colors.red.shade900 
-                        : isWarning 
-                            ? Colors.orange.shade900 
-                            : Colors.green.shade900,
-                  ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _pauseTimer(trupp),
+                        icon: const Icon(Icons.pause),
+                        label: const Text('Pause'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 36),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _endTruppEinsatz(trupp),
+                        icon: const Icon(Icons.stop),
+                        label: const Text('Beenden'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 36),
+                          backgroundColor: Colors.red,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1553,10 +1712,20 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
     }
     
     // Fester 30-Minuten Timer
-    final endTime = trupp.startTime!.add(const Duration(minutes: 30));
-    final remaining = endTime.difference(DateTime.now());
+    final totalDuration = const Duration(minutes: 30);
     
-    return remaining;
+    if (trupp.isActive) {
+      // Timer läuft - berechne Zeit seit letztem Start + bereits pausierte Zeit
+      final elapsedSinceStart = DateTime.now().difference(trupp.startTime!);
+      final totalElapsed = elapsedSinceStart + (trupp.pausedDuration ?? Duration.zero);
+      final remaining = totalDuration - totalElapsed;
+      return remaining;
+    } else {
+      // Timer ist pausiert - zeige gefrorene Zeit
+      final totalElapsed = trupp.pausedDuration ?? Duration.zero;
+      final remaining = totalDuration - totalElapsed;
+      return remaining;
+    }
   }
 
   String _formatDuration(Duration duration) {
@@ -1623,6 +1792,322 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
     setState(() {
       final updatedList = _currentOperation.atemschutzTrupps.map((t) {
         if (t.id == trupp.id) {
+          // Erhöhe roundNumber wenn es ein zweiter Durchgang ist
+          final newRoundNumber = trupp.isCompleted ? trupp.roundNumber + 1 : trupp.roundNumber;
+          
+          return t.copyWith(
+            startTime: DateTime.now(),
+            pausedDuration: Duration.zero,
+            lowestPressure: pressure,
+            isActive: true,
+            isCompleted: false,
+            pressure10MinChecked: false,
+            pressure20MinChecked: false,
+            roundNumber: newRoundNumber,
+          );
+        }
+        return t;
+      }).toList();
+
+      _currentOperation = Operation(
+        id: _currentOperation.id,
+        alarmstichwort: _currentOperation.alarmstichwort,
+        adresseOrGps: _currentOperation.adresseOrGps,
+        vehicleIds: _currentOperation.vehicleIds,
+        vehicleNames: _currentOperation.vehicleNames,
+        vehiclePersonnelAssignment: _currentOperation.vehiclePersonnelAssignment,
+        einsatzTime: _currentOperation.einsatzTime,
+        protocol: _currentOperation.protocol,
+        respiratoryActive: _currentOperation.respiratoryActive,
+        atemschutzTrupps: updatedList,
+        vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+      );
+    });
+    
+    // Entferne Alert-Status für zweiten Durchgang
+    _alertedTrupps.remove(trupp.id);
+    _alertedPressureChecks.remove('${trupp.id}_10');
+    _alertedPressureChecks.remove('${trupp.id}_20');
+    
+    final roundInfo = trupp.isCompleted ? ' (2. Durchgang)' : '';
+    _addProtocolEntry('Atemschutzüberwachung für "${trupp.name}" gestartet$roundInfo (${pressure} bar)');
+  }
+
+  void _pauseTimer(AtemschutzTrupp trupp) {
+    setState(() {
+      // Berechne die bisher verstrichene Zeit
+      final elapsedSinceStart = DateTime.now().difference(trupp.startTime!);
+      final totalElapsed = elapsedSinceStart + (trupp.pausedDuration ?? Duration.zero);
+      
+      final updatedList = _currentOperation.atemschutzTrupps.map((t) {
+        if (t.id == trupp.id) {
+          return t.copyWith(
+            pausedDuration: totalElapsed,
+            isActive: false,
+          );
+        }
+        return t;
+      }).toList();
+
+      _currentOperation = Operation(
+        id: _currentOperation.id,
+        alarmstichwort: _currentOperation.alarmstichwort,
+        adresseOrGps: _currentOperation.adresseOrGps,
+        vehicleIds: _currentOperation.vehicleIds,
+        vehicleNames: _currentOperation.vehicleNames,
+        vehiclePersonnelAssignment: _currentOperation.vehiclePersonnelAssignment,
+        einsatzTime: _currentOperation.einsatzTime,
+        protocol: _currentOperation.protocol,
+        respiratoryActive: _currentOperation.respiratoryActive,
+        atemschutzTrupps: updatedList,
+        vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+      );
+    });
+    
+    _addProtocolEntry('Atemschutzüberwachung für "${trupp.name}" pausiert');
+  }
+
+  void _checkPressureIntervals(AtemschutzTrupp trupp, Duration remainingTime) {
+    // Berechne vergangene Zeit (30 Minuten - verbleibende Zeit)
+    final elapsed = const Duration(minutes: 30) - remainingTime;
+    
+    // Prüfe ob Zeit abgelaufen ist und spiele Alarm ab
+    if (remainingTime.isNegative && !_alertedTrupps.contains(trupp.id)) {
+      _alertedTrupps.add(trupp.id);
+      _playAlarmSound();
+      _addProtocolEntry('ALARM: Atemschutzüberwachungszeit für "${trupp.name}" abgelaufen!');
+    }
+    
+    // Prüfe 10-Minuten-Marke (zwischen 10:00 und 10:05)
+    final check10Key = '${trupp.id}_10';
+    if (!trupp.pressure10MinChecked && elapsed.inMinutes >= 10 && elapsed.inMinutes < 10.1 && !_alertedPressureChecks.contains(check10Key)) {
+      _alertedPressureChecks.add(check10Key);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showIntervalPressureDialog(trupp, 10);
+      });
+    }
+    
+    // Prüfe 20-Minuten-Marke (zwischen 20:00 und 20:05)
+    final check20Key = '${trupp.id}_20';
+    if (!trupp.pressure20MinChecked && elapsed.inMinutes >= 20 && elapsed.inMinutes < 20.1 && !_alertedPressureChecks.contains(check20Key)) {
+      _alertedPressureChecks.add(check20Key);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showIntervalPressureDialog(trupp, 20);
+      });
+    }
+  }
+
+  void _showIntervalPressureDialog(AtemschutzTrupp trupp, int minute) {
+    // Spiele kurzen Alarmton ab
+    _playShortAlertSound();
+    
+    final pressureController = TextEditingController(
+      text: trupp.lowestPressure?.toString() ?? '',
+    );
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Druckabfrage nach $minute Minuten'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Trupp: ${trupp.name}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Text('Nach $minute Minuten - niedrigster Flaschendruck (in bar):'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: pressureController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'z.B. 150',
+                  suffixText: 'bar',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                autofocus: true,
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                final pressure = int.tryParse(pressureController.text);
+                if (pressure == null || pressure <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Bitte einen gültigen Druck eingeben'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                
+                // Prüfe ob der neue Druck höher ist als der vorherige
+                if (trupp.lowestPressure != null && pressure > trupp.lowestPressure!) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Der Druck kann nicht höher sein als der vorherige Wert (${trupp.lowestPressure} bar)'),
+                      backgroundColor: Colors.orange,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                  return;
+                }
+                
+                _updatePressureAtInterval(trupp, pressure, minute);
+                Navigator.pop(context);
+              },
+              child: const Text('Bestätigen'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _updatePressureAtInterval(AtemschutzTrupp trupp, int pressure, int minute) {
+    setState(() {
+      final updatedList = _currentOperation.atemschutzTrupps.map((t) {
+        if (t.id == trupp.id) {
+          return t.copyWith(
+            lowestPressure: pressure,
+            pressure10MinChecked: minute == 10 ? true : t.pressure10MinChecked,
+            pressure20MinChecked: minute == 20 ? true : t.pressure20MinChecked,
+          );
+        }
+        return t;
+      }).toList();
+
+      _currentOperation = Operation(
+        id: _currentOperation.id,
+        alarmstichwort: _currentOperation.alarmstichwort,
+        adresseOrGps: _currentOperation.adresseOrGps,
+        vehicleIds: _currentOperation.vehicleIds,
+        vehicleNames: _currentOperation.vehicleNames,
+        vehiclePersonnelAssignment: _currentOperation.vehiclePersonnelAssignment,
+        einsatzTime: _currentOperation.einsatzTime,
+        protocol: _currentOperation.protocol,
+        respiratoryActive: _currentOperation.respiratoryActive,
+        atemschutzTrupps: updatedList,
+        vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+      );
+    });
+    
+    _addProtocolEntry('Druckabfrage "${trupp.name}" nach $minute Min: ${pressure} bar');
+  }
+
+  Future<void> _playAlarmSound() async {
+    try {
+      // Spiele einen Alarm-Beep mehrmals ab
+      await _audioPlayer.play(AssetSource('sounds/alarm.mp3'));
+    } catch (e) {
+      // Falls kein Sound-File vorhanden, verwende System-Beep als Fallback
+      // Spiele einen synthetischen Ton durch mehrfaches abspielen
+      for (int i = 0; i < 3; i++) {
+        await Future.delayed(const Duration(milliseconds: 200));
+        // Nutze Vibration als Alternative (erfordert vibration package)
+      }
+    }
+  }
+
+  Future<void> _playShortAlertSound() async {
+    try {
+      // Spiele einen kurzen Alarm-Ton für Druckabfragen ab
+      await _audioPlayer.play(AssetSource('sounds/alert.mp3'));
+    } catch (e) {
+      // Falls kein Sound-File vorhanden, spiele kurzen Beep als Fallback
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+  }
+
+  void _showResumePressureDialog(AtemschutzTrupp trupp) {
+    final pressureController = TextEditingController(
+      text: trupp.lowestPressure?.toString() ?? '',
+    );
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Atemschutzüberwachung fortsetzen'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Trupp: ${trupp.name}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              const Text('Aktueller niedrigster Flaschendruck des Trupps (in bar):'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: pressureController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'z.B. 180',
+                  suffixText: 'bar',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                autofocus: true,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final pressure = int.tryParse(pressureController.text);
+                if (pressure == null || pressure <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Bitte einen gültigen Druck eingeben'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                
+                // Prüfe ob der neue Druck höher ist als der vorherige
+                if (trupp.lowestPressure != null && pressure > trupp.lowestPressure!) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Der Druck kann nicht höher sein als der vorherige Wert (${trupp.lowestPressure} bar)'),
+                      backgroundColor: Colors.orange,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                  return;
+                }
+                
+                _resumeTimer(trupp, pressure);
+                Navigator.pop(context);
+              },
+              child: const Text('Fortsetzen'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _resumeTimer(AtemschutzTrupp trupp, int pressure) {
+    setState(() {
+      final updatedList = _currentOperation.atemschutzTrupps.map((t) {
+        if (t.id == trupp.id) {
           return t.copyWith(
             startTime: DateTime.now(),
             lowestPressure: pressure,
@@ -1647,6 +2132,41 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
       );
     });
     
-    _addProtocolEntry('Atemschutzüberwachung für "${trupp.name}" gestartet (${pressure} bar)');
+    _addProtocolEntry('Atemschutzüberwachung für "${trupp.name}" fortgesetzt (${pressure} bar)');
+  }
+
+  void _endTruppEinsatz(AtemschutzTrupp trupp) {
+    setState(() {
+      final updatedList = _currentOperation.atemschutzTrupps.map((t) {
+        if (t.id == trupp.id) {
+          return t.copyWith(
+            isActive: false,
+            isCompleted: true,
+          );
+        }
+        return t;
+      }).toList();
+
+      _currentOperation = Operation(
+        id: _currentOperation.id,
+        alarmstichwort: _currentOperation.alarmstichwort,
+        adresseOrGps: _currentOperation.adresseOrGps,
+        vehicleIds: _currentOperation.vehicleIds,
+        vehicleNames: _currentOperation.vehicleNames,
+        vehiclePersonnelAssignment: _currentOperation.vehiclePersonnelAssignment,
+        einsatzTime: _currentOperation.einsatzTime,
+        protocol: _currentOperation.protocol,
+        respiratoryActive: _currentOperation.respiratoryActive,
+        atemschutzTrupps: updatedList,
+        vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+      );
+    });
+    
+    _addProtocolEntry('Atemschutzeinsatz für "${trupp.name}" beendet');
+  }
+
+  void _startSecondRound(AtemschutzTrupp trupp) {
+    // Zeige Druckabfrage für zweiten Durchgang
+    _showPressureDialog(trupp);
   }
 }

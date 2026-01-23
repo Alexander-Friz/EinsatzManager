@@ -128,6 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icons.add_circle,
               title: 'Einsatz anlegen',
               color: Colors.red,
+              isLarge: true,
               onTap: () {
                 Navigator.push(
                   context,
@@ -138,6 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             _buildMenuTile(
+
               context,
               icon: Icons.history,
               title: 'Vergangene Einsätze',
@@ -215,9 +217,10 @@ class _HomeScreenState extends State<HomeScreen> {
     required String title,
     required Color color,
     required VoidCallback onTap,
+    bool isLarge = false,
   }) {
     return Card(
-      elevation: 2,
+      elevation: isLarge ? 4 : 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -241,17 +244,17 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Icon(
                 icon,
-                size: 32,
+                size: isLarge ? 48 : 32,
                 color: Colors.white,
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: isLarge ? 12 : 6),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6.0),
                 child: Text(
                   title,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style: TextStyle(
+                    fontSize: isLarge ? 14 : 11,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),

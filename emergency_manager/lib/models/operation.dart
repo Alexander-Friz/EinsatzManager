@@ -34,8 +34,13 @@ class AtemschutzTrupp {
   final String person2Id; // ID der zweiten Person
   final DateTime createdAt; // Zeitstempel für Sortierung
   final DateTime? startTime; // Startzeitpunkt der Stoppuhr
+  final Duration? pausedDuration; // Akkumulierte Pausenzeit
   final int? lowestPressure; // Niedrigster Druck in bar
   final bool isActive; // Ob die Stoppuhr läuft
+  final bool pressure10MinChecked; // Ob Druckabfrage bei 10 Min erfolgt ist
+  final bool pressure20MinChecked; // Ob Druckabfrage bei 20 Min erfolgt ist
+  final bool isCompleted; // Ob der Einsatz beendet wurde
+  final int roundNumber; // Durchgangsnummer (1 oder 2)
 
   AtemschutzTrupp({
     required this.name,
@@ -45,8 +50,13 @@ class AtemschutzTrupp {
     DateTime? createdAt,
     String? id,
     this.startTime,
+    this.pausedDuration,
     this.lowestPressure,
     this.isActive = false,
+    this.pressure10MinChecked = false,
+    this.pressure20MinChecked = false,
+    this.isCompleted = false,
+    this.roundNumber = 1,
   })  : id = id ?? '${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecond)}',
         createdAt = createdAt ?? DateTime.now();
 
@@ -61,8 +71,13 @@ class AtemschutzTrupp {
       'person2Id': person2Id,
       'createdAt': createdAt.toIso8601String(),
       'startTime': startTime?.toIso8601String(),
+      'pausedDuration': pausedDuration?.inSeconds,
       'lowestPressure': lowestPressure,
       'isActive': isActive,
+      'pressure10MinChecked': pressure10MinChecked,
+      'pressure20MinChecked': pressure20MinChecked,
+      'isCompleted': isCompleted,
+      'roundNumber': roundNumber,
     };
   }
 
@@ -75,8 +90,13 @@ class AtemschutzTrupp {
       person2Id: json['person2Id'] as String,
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : null,
       startTime: json['startTime'] != null ? DateTime.parse(json['startTime'] as String) : null,
+      pausedDuration: json['pausedDuration'] != null ? Duration(seconds: json['pausedDuration'] as int) : null,
       lowestPressure: json['lowestPressure'] as int?,
       isActive: json['isActive'] as bool? ?? false,
+      pressure10MinChecked: json['pressure10MinChecked'] as bool? ?? false,
+      pressure20MinChecked: json['pressure20MinChecked'] as bool? ?? false,
+      isCompleted: json['isCompleted'] as bool? ?? false,
+      roundNumber: json['roundNumber'] as int? ?? 1,
     );
   }
   
@@ -87,8 +107,13 @@ class AtemschutzTrupp {
     String? person2Id,
     DateTime? createdAt,
     DateTime? startTime,
+    Duration? pausedDuration,
     int? lowestPressure,
     bool? isActive,
+    bool? pressure10MinChecked,
+    bool? pressure20MinChecked,
+    bool? isCompleted,
+    int? roundNumber,
   }) {
     return AtemschutzTrupp(
       id: id,
@@ -98,8 +123,13 @@ class AtemschutzTrupp {
       person2Id: person2Id ?? this.person2Id,
       createdAt: createdAt ?? this.createdAt,
       startTime: startTime ?? this.startTime,
+      pausedDuration: pausedDuration ?? this.pausedDuration,
       lowestPressure: lowestPressure ?? this.lowestPressure,
       isActive: isActive ?? this.isActive,
+      pressure10MinChecked: pressure10MinChecked ?? this.pressure10MinChecked,
+      pressure20MinChecked: pressure20MinChecked ?? this.pressure20MinChecked,
+      isCompleted: isCompleted ?? this.isCompleted,
+      roundNumber: roundNumber ?? this.roundNumber,
     );
   }
 }
