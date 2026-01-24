@@ -25,6 +25,8 @@ class OperationDetailScreen extends StatefulWidget {
 
 class _OperationDetailScreenState extends State<OperationDetailScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isPlaying = false;
+  String? _currentPlayingPath;
   
   // Standardpositionen für Feuerwehrfahrzeuge
   static const List<String> standardPositions = [
@@ -35,6 +37,18 @@ class _OperationDetailScreenState extends State<OperationDetailScreen> {
     'Schlauchtrupp',
     'Melder',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -671,6 +685,7 @@ class _OperationDetailScreenState extends State<OperationDetailScreen> {
   }
 
   Widget _buildAudioPlayer(String audioPath) {
+    final isThisPlaying = _isPlaying && _currentPlayingPath == audioPath;
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.primaryContainer,
@@ -688,19 +703,26 @@ class _OperationDetailScreenState extends State<OperationDetailScreen> {
             child: Text('Sprachnotiz'),
           ),
           IconButton(
-            icon: const Icon(Icons.play_arrow),
-            onPressed: () => _playAudioNote(audioPath),
-            tooltip: 'Abspielen',
+            icon: Icon(isThisPlaying ? Icons.pause : Icons.play_arrow),
+            onPressed: () => _toggleAudioPlayback(audioPath),
+            tooltip: isThisPlaying ? 'Pausieren' : 'Abspielen',
           ),
         ],
       ),
     );
   }
 
-  Future<void> _playAudioNote(String audioPath) async {
+  Future<void> _toggleAudioPlayback(String audioPath) async {
     try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(DeviceFileSource(audioPath));
+      // Wenn diese Audiodatei gerade spielt, pausiere sie
+      if (_isPlaying && _currentPlayingPath == audioPath) {
+        await _audioPlayer.pause();
+      } else {
+        // Wenn eine andere Audiodatei spielt oder keine spielt, spiele diese ab
+        await _audioPlayer.stop();
+        _currentPlayingPath = audioPath;
+        await _audioPlayer.play(DeviceFileSource(audioPath));
+      }
     } catch (e) {
       logger.e('Fehler beim Abspielen der Sprachnotiz: $e');
       if (mounted) {

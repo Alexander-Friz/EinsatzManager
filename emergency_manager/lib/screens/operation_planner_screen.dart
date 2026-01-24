@@ -31,11 +31,20 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
   final Set<String> _alertedTrupps = {}; // Trupps die bereits alarmiert wurden
   final Set<String> _alertedPressureChecks = {}; // Druckprüfungen die bereits Alarm gespielt haben
   final AudioRecorderService _audioRecorderService = AudioRecorderService();
+  bool _isPlaying = false;
+  String? _currentPlayingPath;
 
   @override
   void initState() {
     super.initState();
     _currentOperation = widget.initialOperation;
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+        });
+      }
+    });
   }
 
   @override
@@ -452,25 +461,30 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 padding: const EdgeInsets.all(12),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.audiotrack,
-                                      color: Theme.of(context).colorScheme.primary,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        'Sprachnotiz',
-                                        style: Theme.of(context).textTheme.bodyMedium,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.play_arrow),
-                                      onPressed: () => _playAudioNote(entry.audioPath!),
-                                      tooltip: 'Abspielen',
-                                    ),
-                                  ],
+                                child: Builder(
+                                  builder: (context) {
+                                    final isThisPlaying = _isPlaying && _currentPlayingPath == entry.audioPath!;
+                                    return Row(
+                                      children: [
+                                        Icon(
+                                          Icons.audiotrack,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            'Sprachnotiz',
+                                            style: Theme.of(context).textTheme.bodyMedium,
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: Icon(isThisPlaying ? Icons.pause : Icons.play_arrow),
+                                          onPressed: () => _toggleAudioPlayback(entry.audioPath!),
+                                          tooltip: isThisPlaying ? 'Pausieren' : 'Abspielen',
+                                        ),
+                                      ],
+                                    );
+                                  },
                                 ),
                               ),
                             ],
@@ -653,10 +667,17 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
     );
   }
 
-  Future<void> _playAudioNote(String audioPath) async {
+  Future<void> _toggleAudioPlayback(String audioPath) async {
     try {
-      await _audioPlayer.stop();
-      await _audioPlayer.play(DeviceFileSource(audioPath));
+      // Wenn diese Audiodatei gerade spielt, pausiere sie
+      if (_isPlaying && _currentPlayingPath == audioPath) {
+        await _audioPlayer.pause();
+      } else {
+        // Wenn eine andere Audiodatei spielt oder keine spielt, spiele diese ab
+        await _audioPlayer.stop();
+        _currentPlayingPath = audioPath;
+        await _audioPlayer.play(DeviceFileSource(audioPath));
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1942,6 +1963,86 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
   }
 
   void _pauseTimer(AtemschutzTrupp trupp) {
+    _showPausePressureDialog(trupp);
+  }
+
+  void _showPausePressureDialog(AtemschutzTrupp trupp) {
+    final pressureController = TextEditingController(
+      text: trupp.lowestPressure?.toString() ?? '',
+    );
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Atemschutzüberwachung pausieren'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Trupp: ${trupp.name}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              const Text('Aktueller niedrigster Flaschendruck des Trupps (in bar):'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: pressureController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'z.B. 150',
+                  suffixText: 'bar',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                autofocus: true,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final pressure = int.tryParse(pressureController.text);
+                if (pressure == null || pressure <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Bitte einen gültigen Druck eingeben'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                
+                // Prüfe ob der neue Druck höher ist als der vorherige
+                if (trupp.lowestPressure != null && pressure > trupp.lowestPressure!) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Der Druck kann nicht höher sein als der vorherige Wert (${trupp.lowestPressure} bar)'),
+                      backgroundColor: Colors.orange,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                  return;
+                }
+                
+                _executePauseTimer(trupp, pressure);
+                Navigator.pop(context);
+              },
+              child: const Text('Pausieren'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _executePauseTimer(AtemschutzTrupp trupp, int pressure) {
     setState(() {
       // Berechne die bisher verstrichene Zeit
       final elapsedSinceStart = DateTime.now().difference(trupp.startTime!);
@@ -1952,6 +2053,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
           return t.copyWith(
             pausedDuration: totalElapsed,
             isActive: false,
+            lowestPressure: pressure,
           );
         }
         return t;
@@ -1972,7 +2074,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
       );
     });
     
-    _addProtocolEntry('Atemschutzüberwachung für "${trupp.name}" pausiert');
+    _addProtocolEntry('Atemschutzüberwachung für "${trupp.name}" pausiert ($pressure bar)');
   }
 
   void _checkPressureIntervals(AtemschutzTrupp trupp, Duration remainingTime) {
@@ -2244,12 +2346,93 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
   }
 
   void _endTruppEinsatz(AtemschutzTrupp trupp) {
+    _showEndPressureDialog(trupp);
+  }
+
+  void _showEndPressureDialog(AtemschutzTrupp trupp) {
+    final pressureController = TextEditingController(
+      text: trupp.lowestPressure?.toString() ?? '',
+    );
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Atemschutzeinsatz beenden'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Trupp: ${trupp.name}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              const Text('Niedrigster Flaschendruck des Trupps (in bar):'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: pressureController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'z.B. 50',
+                  suffixText: 'bar',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                autofocus: true,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final pressure = int.tryParse(pressureController.text);
+                if (pressure == null || pressure <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Bitte einen gültigen Druck eingeben'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                
+                // Prüfe ob der neue Druck höher ist als der vorherige
+                if (trupp.lowestPressure != null && pressure > trupp.lowestPressure!) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Der Druck kann nicht höher sein als der vorherige Wert (${trupp.lowestPressure} bar)'),
+                      backgroundColor: Colors.orange,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                  return;
+                }
+                
+                _executeEndTruppEinsatz(trupp, pressure);
+                Navigator.pop(context);
+              },
+              child: const Text('Beenden'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _executeEndTruppEinsatz(AtemschutzTrupp trupp, int pressure) {
     setState(() {
       final updatedList = _currentOperation.atemschutzTrupps.map((t) {
         if (t.id == trupp.id) {
           return t.copyWith(
             isActive: false,
             isCompleted: true,
+            lowestPressure: pressure,
           );
         }
         return t;
@@ -2270,7 +2453,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
       );
     });
     
-    _addProtocolEntry('Atemschutzeinsatz für "${trupp.name}" beendet');
+    _addProtocolEntry('Atemschutzeinsatz für "${trupp.name}" beendet ($pressure bar)');
   }
 
   void _startSecondRound(AtemschutzTrupp trupp) {
