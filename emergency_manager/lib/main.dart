@@ -338,13 +338,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               if (subtitle != null) ...[
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   subtitle,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 9,
-                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
                 ),
               ],

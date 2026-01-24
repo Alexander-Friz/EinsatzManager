@@ -1,6 +1,7 @@
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'dart:convert';
 
 class PdfService {
   static Future<void> generateStatisticsPdf({
@@ -418,6 +419,401 @@ class PdfService {
           ];
         }).whereType<List<String>>(),
       ],
+    );
+  }
+
+  // PDF für Einsatzprotokolle generieren
+  static Future<void> generateOperationProtocolPdf({
+    required String alarmstichwort,
+    required String adresse,
+    required DateTime einsatzTime,
+    required List<String> vehicleNames,
+    required List<dynamic> protocol, // List<ProtocolEntry>
+    required Map<String, dynamic> vehiclePersonnelAssignment,
+    required List<dynamic> personnelList,
+    required List<dynamic> atemschutzTrupps, // List<AtemschutzTrupp>
+    required List<String> externalVehicles,
+  }) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
+          return [
+            // Titel
+            pw.Header(
+              level: 0,
+              child: pw.Text(
+                'Einsatzprotokoll',
+                style: pw.TextStyle(
+                  fontSize: 24,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 20),
+
+            // Einsatzinformationen
+            pw.Container(
+              padding: const pw.EdgeInsets.all(16),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.grey300),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'Einsatzinformationen',
+                    style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 12),
+                  pw.Text(
+                    'Alarmstichwort: $alarmstichwort',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 6),
+                  pw.Text(
+                    'Adresse: $adresse',
+                    style: const pw.TextStyle(fontSize: 11),
+                  ),
+                  pw.SizedBox(height: 6),
+                  pw.Text(
+                    'Einsatzzeit: ${einsatzTime.day}.${einsatzTime.month}.${einsatzTime.year} ${einsatzTime.hour}:${einsatzTime.minute.toString().padLeft(2, '0')}',
+                    style: const pw.TextStyle(fontSize: 11),
+                  ),
+                  pw.SizedBox(height: 6),
+                  pw.Text(
+                    'Fahrzeuge: ${vehicleNames.join(", ")}',
+                    style: const pw.TextStyle(fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 24),
+
+            // Eingesetzte Kräfte
+            pw.Header(
+              level: 1,
+              child: pw.Text(
+                'Eingesetzte Kräfte',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 12),
+            _buildPersonnelAssignmentTable(vehiclePersonnelAssignment, personnelList, vehicleNames),
+            pw.SizedBox(height: 24),
+
+            // Externe Fahrzeuge
+            if (externalVehicles.isNotEmpty) ...[
+              pw.Header(
+                level: 1,
+                child: pw.Text(
+                  'Externe Fahrzeuge',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 12),
+              ...externalVehicles.map((vehicle) {
+                return pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 8),
+                  padding: const pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey400),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                  ),
+                  child: pw.Row(
+                    children: [
+                      pw.Icon(
+                        const pw.IconData(0xe7ef), // groups icon
+                        size: 16,
+                      ),
+                      pw.SizedBox(width: 8),
+                      pw.Text(
+                        vehicle,
+                        style: pw.TextStyle(
+                          fontSize: 11,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              pw.SizedBox(height: 24),
+            ],
+
+            // Atemschutz-Trupps
+            if (atemschutzTrupps.isNotEmpty) ...[
+              pw.Header(
+                level: 1,
+                child: pw.Text(
+                  'Atemschutz-Trupps',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 12),
+              _buildAtemschutzTable(atemschutzTrupps, personnelList),
+              pw.SizedBox(height: 24),
+            ],
+
+            // Protokolleinträge
+            pw.Header(
+              level: 1,
+              child: pw.Text(
+                'Protokolleinträge',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 12),
+            if (protocol.isEmpty)
+              pw.Text('Keine Protokolleinträge vorhanden')
+            else
+              ...protocol.map((entry) {
+                final text = entry.text as String;
+                final timestamp = entry.timestamp as DateTime;
+                final imageBase64 = entry.imageBase64 as String?;
+                final audioPath = entry.audioPath as String?;
+
+                return pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 16),
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey400),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Expanded(
+                            child: pw.Text(
+                              text,
+                              style: pw.TextStyle(
+                                fontSize: 12,
+                                fontWeight: pw.FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          pw.Text(
+                            '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}',
+                            style: const pw.TextStyle(fontSize: 10),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        '${timestamp.day}.${timestamp.month}.${timestamp.year}',
+                        style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+                      ),
+                      if (imageBase64 != null) ...[
+                        pw.SizedBox(height: 10),
+                        pw.Container(
+                          height: 200,
+                          child: pw.Image(
+                            pw.MemoryImage(
+                              const Base64Decoder().convert(imageBase64),
+                            ),
+                            fit: pw.BoxFit.contain,
+                          ),
+                        ),
+                      ],
+                      if (audioPath != null) ...[
+                        pw.SizedBox(height: 8),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.all(8),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.grey200,
+                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                          ),
+                          child: pw.Row(
+                            children: [
+                              pw.Icon(
+                                const pw.IconData(0xe3a1), // audio icon
+                                size: 16,
+                              ),
+                              pw.SizedBox(width: 8),
+                              pw.Text(
+                                'Sprachnotiz: $audioPath',
+                                style: const pw.TextStyle(fontSize: 10),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }).toList(),
+          ];
+        },
+      ),
+    );
+
+    // PDF drucken oder teilen
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+    );
+  }
+
+  static pw.Widget _buildPersonnelAssignmentTable(
+    Map<String, dynamic> vehiclePersonnelAssignment,
+    List<dynamic> personnelList,
+    List<String> vehicleNames,
+  ) {
+    final List<List<String>> tableData = [
+      ['Fahrzeug', 'Position', 'Name', 'Dienstgrad'],
+    ];
+
+    // Erstelle eine Map für Fahrzeug-IDs zu Namen
+    final Map<String, String> vehicleIdToName = {};
+    
+    vehiclePersonnelAssignment.forEach((vehicleId, assignments) {
+      // Versuche den Fahrzeugnamen zu finden (falls in vehicleNames vorhanden)
+      final vehicleName = vehicleNames.isNotEmpty && vehicleNames.length > vehicleIdToName.length
+          ? vehicleNames[vehicleIdToName.length]
+          : vehicleId;
+      vehicleIdToName[vehicleId] = vehicleName;
+      
+      if (assignments is Map<String, dynamic>) {
+        assignments.forEach((personnelId, position) {
+          // Finde die Person
+          try {
+            final person = personnelList.firstWhere(
+              (p) => p.id == personnelId,
+            );
+            
+            tableData.add([
+              vehicleName,
+              position as String,
+              person.name as String,
+              person.dienstgrad as String,
+            ]);
+          } catch (e) {
+            // Person nicht gefunden, überspringe
+          }
+        });
+      }
+    });
+
+    if (tableData.length == 1) {
+      return pw.Text('Keine Kräfte zugewiesen');
+    }
+
+    return pw.Table.fromTextArray(
+      border: pw.TableBorder.all(color: PdfColors.grey300),
+      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+      cellStyle: const pw.TextStyle(fontSize: 9),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+      cellAlignment: pw.Alignment.centerLeft,
+      data: tableData,
+    );
+  }
+
+  static pw.Widget _buildAtemschutzTable(
+    List<dynamic> atemschutzTrupps,
+    List<dynamic> personnelList,
+  ) {
+    final List<List<String>> tableData = [
+      ['Trupp', 'Person 1', 'Person 2', 'Zeit', 'Status', 'Niedrigster Druck'],
+    ];
+
+    for (var trupp in atemschutzTrupps) {
+      // Finde die Personen
+      dynamic person1;
+      dynamic person2;
+      
+      try {
+        person1 = personnelList.firstWhere(
+          (p) => p.id == trupp.person1Id,
+        );
+      } catch (e) {
+        person1 = null;
+      }
+      
+      try {
+        person2 = personnelList.firstWhere(
+          (p) => p.id == trupp.person2Id,
+        );
+      } catch (e) {
+        person2 = null;
+      }
+
+      // Berechne die Zeit
+      String timeStr = '-';
+      if (trupp.startTime != null) {
+        final startTime = trupp.startTime as DateTime;
+        final now = DateTime.now();
+        final elapsed = now.difference(startTime);
+        final pausedDuration = trupp.pausedDuration as Duration?;
+        
+        if (pausedDuration != null) {
+          final activeTime = elapsed - pausedDuration;
+          timeStr = '${activeTime.inMinutes}:${(activeTime.inSeconds % 60).toString().padLeft(2, '0')} min';
+        } else {
+          timeStr = '${elapsed.inMinutes}:${(elapsed.inSeconds % 60).toString().padLeft(2, '0')} min';
+        }
+      }
+
+      // Status
+      String status = 'Bereit';
+      if (trupp.isCompleted == true) {
+        status = 'Beendet';
+      } else if (trupp.isActive == true) {
+        status = 'Aktiv';
+      }
+
+      tableData.add([
+        '${trupp.name} (${trupp.roundNumber}. DG)',
+        person1?.name ?? trupp.person1Id ?? 'Unbekannt',
+        person2?.name ?? trupp.person2Id ?? 'Unbekannt',
+        timeStr,
+        status,
+        trupp.lowestPressure != null ? '${trupp.lowestPressure} bar' : '-',
+      ]);
+    }
+
+    if (tableData.length == 1) {
+      return pw.Text('Keine Atemschutz-Trupps eingesetzt');
+    }
+
+    return pw.Table.fromTextArray(
+      border: pw.TableBorder.all(color: PdfColors.grey300),
+      headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
+      cellStyle: const pw.TextStyle(fontSize: 8),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+      cellAlignment: pw.Alignment.centerLeft,
+      data: tableData,
+      columnWidths: {
+        0: const pw.FlexColumnWidth(2),
+        1: const pw.FlexColumnWidth(2),
+        2: const pw.FlexColumnWidth(2),
+        3: const pw.FlexColumnWidth(1.5),
+        4: const pw.FlexColumnWidth(1.5),
+        5: const pw.FlexColumnWidth(1.5),
+      },
     );
   }
 }

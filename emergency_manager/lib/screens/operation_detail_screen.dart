@@ -5,6 +5,7 @@ import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import '../models/operation.dart';
 import '../providers/personnel_notifier.dart';
+import '../services/pdf_service.dart';
 import 'operation_edit_screen.dart';
 
 final logger = Logger();
@@ -63,6 +64,13 @@ class _OperationDetailScreenState extends State<OperationDetailScreen> {
         title: const Text('Einsatzdetails'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          if (widget.operation.protocol.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf),
+              onPressed: () => _exportProtocolToPdf(),
+              tooltip: 'Als PDF exportieren',
+              color: Colors.purple,
+            ),
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () {
@@ -145,7 +153,7 @@ class _OperationDetailScreenState extends State<OperationDetailScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Eingesetzte Fahrzeuge (${widget.operation.vehicleIds.length})',
+                          'Eingesetzte Fahrzeuge (${widget.operation.vehicleIds.length + widget.operation.externalVehicles.length})',
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -153,14 +161,20 @@ class _OperationDetailScreenState extends State<OperationDetailScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    if (widget.operation.vehicleNames.isEmpty)
+                    if (widget.operation.vehicleNames.isEmpty && widget.operation.externalVehicles.isEmpty)
                       const Text('Keine Fahrzeuge eingesetzt')
-                    else
+                    else ...[
+                      // Eigene Fahrzeuge
                       ...widget.operation.vehicleNames.map((vehicleName) {
                         final vehicleId = widget.operation.vehicleIds[
                             widget.operation.vehicleNames.indexOf(vehicleName)];
                         return _buildVehicleItem(vehicleId, vehicleName);
                       }),
+                      // Externe Fahrzeuge
+                      ...widget.operation.externalVehicles.map((externalVehicle) {
+                        return _buildExternalVehicleItem(externalVehicle);
+                      }),
+                    ],
                   ],
                 ),
               ),
@@ -334,6 +348,50 @@ class _OperationDetailScreenState extends State<OperationDetailScreen> {
             child: Text(
               vehicleName,
               style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExternalVehicleItem(String vehicleName) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.tertiary.withOpacity(0.5),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.groups,
+            color: Theme.of(context).colorScheme.tertiary,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  vehicleName,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  'Externes Fahrzeug',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.tertiary,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -729,6 +787,34 @@ class _OperationDetailScreenState extends State<OperationDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Fehler beim Abspielen: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportProtocolToPdf() async {
+    try {
+      final personnelNotifier = context.read<PersonnelNotifier>();
+      
+      await PdfService.generateOperationProtocolPdf(
+        alarmstichwort: widget.operation.alarmstichwort,
+        adresse: widget.operation.adresseOrGps,
+        einsatzTime: widget.operation.einsatzTime,
+        vehicleNames: widget.operation.vehicleNames,
+        protocol: widget.operation.protocol,
+        vehiclePersonnelAssignment: widget.operation.vehiclePersonnelAssignment,
+        personnelList: personnelNotifier.personnelList,
+        atemschutzTrupps: widget.operation.atemschutzTrupps,
+        externalVehicles: widget.operation.externalVehicles,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler beim PDF-Export: $e'),
+            backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
         );

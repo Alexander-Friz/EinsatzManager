@@ -10,6 +10,7 @@ import '../providers/vehicle_notifier.dart';
 import '../providers/personnel_notifier.dart';
 import '../providers/archive_notifier.dart';
 import '../services/audio_recorder_service.dart';
+import '../services/pdf_service.dart';
 
 class OperationPlannerScreen extends StatefulWidget {
   final Operation initialOperation;
@@ -256,74 +257,167 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Fahrzeugbesatzung',
-              style: Theme.of(context).textTheme.titleMedium,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Fahrzeugbesatzung',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                ElevatedButton.icon(
+                  onPressed: _showAddVehicleDialog,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Fahrzeug hinzufügen'),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             Consumer2<VehicleNotifier, PersonnelNotifier>(
               builder: (context, vehicleNotifier, personnelNotifier, child) {
                 return Column(
-                  children: _currentOperation.vehicleIds.map((vehicleId) {
-                    final vehicle = vehicleNotifier.vehicleList
-                        .firstWhere((v) => v.id == vehicleId);
-                    final assignment =
-                        _currentOperation.vehiclePersonnelAssignment[vehicleId] ?? {};
+                  children: [
+                    // Eigene Fahrzeuge
+                    ..._currentOperation.vehicleIds.map((vehicleId) {
+                      final vehicle = vehicleNotifier.vehicleList
+                          .firstWhere((v) => v.id == vehicleId);
+                      final assignment =
+                          _currentOperation.vehiclePersonnelAssignment[vehicleId] ?? {};
 
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              vehicle.funkrufname,
-                              style: Theme.of(context).textTheme.titleSmall,
-                            ),
-                            const SizedBox(height: 12),
-                            ...assignment.entries.map((entry) {
-                              final person = personnelNotifier.personnelList
-                                  .firstWhere((p) => p.id == entry.key);
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            person.name,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium,
-                                          ),
-                                          Text(
-                                            '${person.dienstgrad} - ${person.position}',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall,
-                                          ),
-                                        ],
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    vehicle.funkrufname,
+                                    style: Theme.of(context).textTheme.titleSmall,
+                                  ),
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.edit, size: 20),
+                                        onPressed: () => _showEditPersonnelDialog(vehicleId, vehicle.funkrufname),
+                                        tooltip: 'Besatzung bearbeiten',
+                                        color: Colors.blue,
                                       ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete, size: 20),
+                                        onPressed: () => _removeVehicle(vehicleId),
+                                        tooltip: 'Fahrzeug entfernen',
+                                        color: Colors.red,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              ...assignment.entries.map((entry) {
+                                final person = personnelNotifier.personnelList
+                                    .firstWhere((p) => p.id == entry.key);
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              person.name,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium,
+                                            ),
+                                            Text(
+                                              '${person.dienstgrad} - ${person.position}',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Chip(
+                                        label: Text(entry.value),
+                                        backgroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .primaryContainer,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                              if (assignment.isEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  child: Text(
+                                    'Keine Besatzung zugewiesen',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.grey,
                                     ),
-                                    Chip(
-                                      label: Text(entry.value),
-                                      backgroundColor: Theme.of(context)
-                                          .colorScheme
-                                          .primaryContainer,
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              );
-                            }),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  }).toList(),
+                      );
+                    }).toList(),
+                    // Externe Fahrzeuge
+                    ..._currentOperation.externalVehicles.map((externalVehicle) {
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.groups,
+                                        size: 20,
+                                        color: Theme.of(context).colorScheme.secondary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        externalVehicle,
+                                        style: Theme.of(context).textTheme.titleSmall,
+                                      ),
+                                    ],
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete, size: 20),
+                                    onPressed: () => _removeExternalVehicle(externalVehicle),
+                                    tooltip: 'Externes Fahrzeug entfernen',
+                                    color: Colors.red,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Externes Fahrzeug (andere Wehr)',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ],
                 );
               },
             ),
@@ -340,6 +434,24 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
+              // PDF Export Button - ganz oben
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _currentOperation.protocol.isEmpty
+                      ? null
+                      : () => _exportProtocolToPdf(),
+                  icon: const Icon(Icons.picture_as_pdf, size: 20),
+                  label: const Text('Protokoll als PDF drucken'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               Text(
                 'Einsatzprotokoll',
                 style: Theme.of(context).textTheme.titleMedium,
@@ -541,6 +653,34 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
         );
       },
     );
+  }
+
+  Future<void> _exportProtocolToPdf() async {
+    try {
+      final personnelNotifier = context.read<PersonnelNotifier>();
+      
+      await PdfService.generateOperationProtocolPdf(
+        alarmstichwort: _currentOperation.alarmstichwort,
+        adresse: _currentOperation.adresseOrGps,
+        einsatzTime: _currentOperation.einsatzTime,
+        vehicleNames: _currentOperation.vehicleNames,
+        protocol: _currentOperation.protocol,
+        vehiclePersonnelAssignment: _currentOperation.vehiclePersonnelAssignment,
+        personnelList: personnelNotifier.personnelList,
+        atemschutzTrupps: _currentOperation.atemschutzTrupps,
+        externalVehicles: _currentOperation.externalVehicles,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler beim PDF-Export: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   void _showImagePickerDialog() {
@@ -1147,22 +1287,6 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                           setState(() {
                             selectedVehicleId = value;
                             selectedTrupp = null;
-                            selectedPerson1Id = null;
-                            selectedPerson2Id = null;
-                            
-                            // Automatisch die Besatzung des Fahrzeugs setzen
-                            if (value != null && _currentOperation.vehiclePersonnelAssignment.containsKey(value)) {
-                              final assignedPersonnel = _currentOperation.vehiclePersonnelAssignment[value]!;
-                              final personnelIds = assignedPersonnel.keys.toList();
-                              
-                              // Setze die ersten zwei Personen automatisch
-                              if (personnelIds.isNotEmpty) {
-                                selectedPerson1Id = personnelIds[0];
-                              }
-                              if (personnelIds.length > 1) {
-                                selectedPerson2Id = personnelIds[1];
-                              }
-                            }
                           });
                         },
                       ),
@@ -1177,12 +1301,11 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                             
                             // Trupps die bereits für dieses Fahrzeug verwendet wurden
                             final usedTrupps = <String>{};
-                            _currentOperation.atemschutzTrupps.forEach((atTrupp) {
-                              // Nur Trupps für dieses spezifische Fahrzeug berücksichtigen
+                            for (var atTrupp in _currentOperation.atemschutzTrupps) {
                               if (atTrupp.vehicleId == selectedVehicleId) {
                                 usedTrupps.add(atTrupp.name);
                               }
-                            });
+                            }
                             
                             final availableTrupps = vehicle.trupps
                                 .where((t) => !usedTrupps.contains(t))
@@ -1192,21 +1315,28 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                               return Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.errorContainer,
+                                  color: Colors.orange.shade100,
                                   borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: Colors.orange.shade300),
                                 ),
-                                child: Text(
-                                  'Alle Trupps dieses Fahrzeugs sind bereits angelegt',
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onErrorContainer,
-                                  ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.info, color: Colors.orange),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Alle Trupps dieses Fahrzeugs sind bereits angelegt',
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               );
                             }
 
                             return DropdownButtonFormField<String>(
                               value: selectedTrupp,
-                              hint: const Text('Trupp wählen'),
+                              hint: const Text('Trupp wählen (z.B. Angriffstrupp)'),
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(6),
@@ -1226,6 +1356,150 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                             );
                           },
                         ),
+                        const SizedBox(height: 16),
+                        
+                        // Zeige automatisch zugewiesene Personen an
+                        if (selectedTrupp != null) ...[
+                          const Text('Truppbesetzung:'),
+                          const SizedBox(height: 8),
+                          Builder(
+                            builder: (context) {
+                              final assignedPersonnel = _currentOperation.vehiclePersonnelAssignment[selectedVehicleId];
+                              
+                              if (assignedPersonnel == null || assignedPersonnel.isEmpty) {
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade100,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.red.shade300),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.error, color: Colors.red),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Diesem Fahrzeug ist keine Besatzung zugewiesen. Bitte weisen Sie zunächst Personal zu.',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              
+                              // Finde Personen basierend auf Rolle
+                              final truppFuehrerRole = '$selectedTrupp Führer';
+                              final truppMannRole = '$selectedTrupp Mann';
+                              
+                              String? fuehrerId;
+                              String? mannId;
+                              
+                              assignedPersonnel.forEach((personId, role) {
+                                if (role == truppFuehrerRole) {
+                                  fuehrerId = personId;
+                                } else if (role == truppMannRole) {
+                                  mannId = personId;
+                                }
+                              });
+                              
+                              if (fuehrerId == null || mannId == null) {
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade100,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.orange.shade300),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(Icons.warning, color: Colors.orange),
+                                          SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              'Unvollständige Truppbesetzung',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Fehlende Rollen:\n${fuehrerId == null ? '• $truppFuehrerRole\n' : ''}${mannId == null ? '• $truppMannRole' : ''}',
+                                        style: const TextStyle(fontSize: 11),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      const Text(
+                                        'Bitte weisen Sie die entsprechenden Rollen in der Fahrzeugbesatzung zu.',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              
+                              final fuehrer = personnelNotifier.personnelList
+                                  .firstWhere((p) => p.id == fuehrerId);
+                              final mann = personnelNotifier.personnelList
+                                  .firstWhere((p) => p.id == mannId);
+                              
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: Colors.green.shade300),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            '$selectedTrupp Führer: ${fuehrer.name}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            '$selectedTrupp Mann: ${mann.name}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ],
                     ] else ...[
                       // Truppname (immer Freitext)
@@ -1459,7 +1733,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
     String? selectedPerson2Id,
   ) {
     if (isVehicleLinked) {
-      // Bei Fahrzeugbezug: nur Fahrzeug und Trupp erforderlich
+      // Bei Fahrzeugbezug: nur Fahrzeug und Trupp erforderlich (Personen werden automatisch zugewiesen)
       return selectedVehicleId != null && selectedTrupp != null;
     } else {
       // Bei Großschadenslagen: Name erforderlich
@@ -1494,18 +1768,26 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
       );
 
       if (isVehicleLinked && selectedVehicleId != null && selectedTrupp != null) {
-        // Mit Fahrzeugbezug - hole Personen automatisch aus der Fahrzeugbesatzung
-        String? person1Id;
-        String? person2Id;
+        // Mit Fahrzeugbezug - finde Personen automatisch basierend auf Rollen
+        final assignedPersonnel = _currentOperation.vehiclePersonnelAssignment[selectedVehicleId];
         
-        if (_currentOperation.vehiclePersonnelAssignment.containsKey(selectedVehicleId)) {
-          final assignedPersonnel = _currentOperation.vehiclePersonnelAssignment[selectedVehicleId]!;
-          final personnelIds = assignedPersonnel.keys.toList();
+        if (assignedPersonnel != null && assignedPersonnel.isNotEmpty) {
+          String? person1Id;
+          String? person2Id;
           
-          if (personnelIds.length >= 2) {
-            person1Id = personnelIds[0];
-            person2Id = personnelIds[1];
-            
+          // Suche nach Truppführer und Truppmann für den gewählten Trupp
+          final truppFuehrerRole = '$selectedTrupp Führer';
+          final truppMannRole = '$selectedTrupp Mann';
+          
+          assignedPersonnel.forEach((personId, role) {
+            if (role == truppFuehrerRole) {
+              person1Id = personId;
+            } else if (role == truppMannRole) {
+              person2Id = personId;
+            }
+          });
+          
+          if (person1Id != null && person2Id != null) {
             // Hole die Namen für das Protokoll
             final person1 = context.read<PersonnelNotifier>().personnelList
                 .firstWhere((p) => p.id == person1Id, orElse: () => PersonalData(
@@ -1519,8 +1801,8 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
             updatedList.add(AtemschutzTrupp(
               name: selectedTrupp,
               vehicleId: selectedVehicleId,
-              person1Id: person1Id,
-              person2Id: person2Id,
+              person1Id: person1Id!,
+              person2Id: person2Id!,
             ));
             
             _addProtocolEntry('Atemschutztrupp "$selectedTrupp" angelegt: ${person1.name}, ${person2.name}');
@@ -1577,6 +1859,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
         respiratoryActive: true,
         atemschutzTrupps: updatedList,
         vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+        externalVehicles: _currentOperation.externalVehicles,
       );
     });
   }
@@ -1950,6 +2233,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
         respiratoryActive: _currentOperation.respiratoryActive,
         atemschutzTrupps: updatedList,
         vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+        externalVehicles: _currentOperation.externalVehicles,
       );
     });
     
@@ -2071,6 +2355,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
         respiratoryActive: _currentOperation.respiratoryActive,
         atemschutzTrupps: updatedList,
         vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+        externalVehicles: _currentOperation.externalVehicles,
       );
     });
     
@@ -2208,6 +2493,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
         respiratoryActive: _currentOperation.respiratoryActive,
         atemschutzTrupps: updatedList,
         vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+        externalVehicles: _currentOperation.externalVehicles,
       );
     });
     
@@ -2339,6 +2625,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
         respiratoryActive: _currentOperation.respiratoryActive,
         atemschutzTrupps: updatedList,
         vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+        externalVehicles: _currentOperation.externalVehicles,
       );
     });
     
@@ -2450,10 +2737,612 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
         respiratoryActive: _currentOperation.respiratoryActive,
         atemschutzTrupps: updatedList,
         vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+        externalVehicles: _currentOperation.externalVehicles,
       );
     });
     
     _addProtocolEntry('Atemschutzeinsatz für "${trupp.name}" beendet ($pressure bar)');
+  }
+
+  void _showAddVehicleDialog() {
+    bool isExternal = false;
+    final vehicleNotifier = context.read<VehicleNotifier>();
+    final externalVehicleController = TextEditingController();
+    
+    // Filtere Fahrzeuge, die noch nicht im Einsatz sind
+    final availableVehicles = vehicleNotifier.vehicleList
+        .where((v) => !_currentOperation.vehicleIds.contains(v.id))
+        .toList();
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Fahrzeug hinzufügen'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment<bool>(
+                          value: false,
+                          label: Text('Eigene Fahrzeuge'),
+                          icon: Icon(Icons.local_fire_department),
+                        ),
+                        ButtonSegment<bool>(
+                          value: true,
+                          label: Text('Andere Wehr'),
+                          icon: Icon(Icons.groups),
+                        ),
+                      ],
+                      selected: {isExternal},
+                      onSelectionChanged: (Set<bool> newSelection) {
+                        setState(() {
+                          isExternal = newSelection.first;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    if (!isExternal) ...[
+                      if (availableVehicles.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text(
+                            'Alle Fahrzeuge sind bereits im Einsatz',
+                            style: TextStyle(fontStyle: FontStyle.italic),
+                          ),
+                        )
+                      else
+                        Flexible(
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: availableVehicles.length,
+                            itemBuilder: (context, index) {
+                              final vehicle = availableVehicles[index];
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: ListTile(
+                                  leading: const Icon(Icons.local_fire_department),
+                                  title: Text(vehicle.funkrufname),
+                                  subtitle: Text(vehicle.fahrzeugklasse),
+                                  onTap: () {
+                                    _addVehicleToOperation(vehicle.id);
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                    ] else ...[
+                      const Text('Funkrufname des externen Fahrzeugs:'),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: externalVehicleController,
+                        decoration: const InputDecoration(
+                          hintText: 'z.B. Florian Nachbarstadt 11/1',
+                          border: OutlineInputBorder(),
+                        ),
+                        autofocus: true,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Abbrechen'),
+                ),
+                if (isExternal)
+                  ElevatedButton(
+                    onPressed: () {
+                      final funkrufname = externalVehicleController.text.trim();
+                      if (funkrufname.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Bitte einen Funkrufnamen eingeben'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+                      _addExternalVehicle(funkrufname);
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Hinzufügen'),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _addVehicleToOperation(String vehicleId) {
+    setState(() {
+      final updatedVehicleIds = List<String>.from(_currentOperation.vehicleIds)
+        ..add(vehicleId);
+      
+      final vehicleNotifier = context.read<VehicleNotifier>();
+      final vehicle = vehicleNotifier.vehicleList.firstWhere((v) => v.id == vehicleId);
+      
+      final updatedVehicleNames = List<String>.from(_currentOperation.vehicleNames)
+        ..add(vehicle.funkrufname);
+      
+      _currentOperation = Operation(
+        id: _currentOperation.id,
+        alarmstichwort: _currentOperation.alarmstichwort,
+        adresseOrGps: _currentOperation.adresseOrGps,
+        vehicleIds: updatedVehicleIds,
+        vehicleNames: updatedVehicleNames,
+        vehiclePersonnelAssignment: _currentOperation.vehiclePersonnelAssignment,
+        einsatzTime: _currentOperation.einsatzTime,
+        protocol: _currentOperation.protocol,
+        respiratoryActive: _currentOperation.respiratoryActive,
+        atemschutzTrupps: _currentOperation.atemschutzTrupps,
+        vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+        externalVehicles: _currentOperation.externalVehicles,
+      );
+    });
+    
+    final vehicleNotifier = context.read<VehicleNotifier>();
+    final vehicle = vehicleNotifier.vehicleList.firstWhere((v) => v.id == vehicleId);
+    _addProtocolEntry('Fahrzeug "${vehicle.funkrufname}" zum Einsatz hinzugefügt');
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${vehicle.funkrufname} wurde hinzugefügt'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _addExternalVehicle(String funkrufname) {
+    setState(() {
+      final updatedExternalVehicles = List<String>.from(_currentOperation.externalVehicles)
+        ..add(funkrufname);
+      
+      _currentOperation = Operation(
+        id: _currentOperation.id,
+        alarmstichwort: _currentOperation.alarmstichwort,
+        adresseOrGps: _currentOperation.adresseOrGps,
+        vehicleIds: _currentOperation.vehicleIds,
+        vehicleNames: _currentOperation.vehicleNames,
+        vehiclePersonnelAssignment: _currentOperation.vehiclePersonnelAssignment,
+        einsatzTime: _currentOperation.einsatzTime,
+        protocol: _currentOperation.protocol,
+        respiratoryActive: _currentOperation.respiratoryActive,
+        atemschutzTrupps: _currentOperation.atemschutzTrupps,
+        vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+        externalVehicles: updatedExternalVehicles,
+      );
+    });
+    
+    _addProtocolEntry('Externes Fahrzeug "$funkrufname" zum Einsatz hinzugefügt');
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$funkrufname wurde hinzugefügt'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _removeVehicle(String vehicleId) {
+    final vehicleNotifier = context.read<VehicleNotifier>();
+    final vehicle = vehicleNotifier.vehicleList.firstWhere((v) => v.id == vehicleId);
+    
+    // Prüfe ob es Atemschutztrupps für dieses Fahrzeug gibt
+    final hasTrupps = _currentOperation.atemschutzTrupps
+        .any((trupp) => trupp.vehicleId == vehicleId);
+    
+    if (hasTrupps) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Fahrzeug kann nicht entfernt werden, da noch Atemschutztrupps zugewiesen sind'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Fahrzeug entfernen'),
+          content: Text(
+            'Möchten Sie "${vehicle.funkrufname}" wirklich vom Einsatz entfernen?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  final updatedVehicleIds = List<String>.from(_currentOperation.vehicleIds)
+                    ..remove(vehicleId);
+                  
+                  final vehicleIndex = _currentOperation.vehicleIds.indexOf(vehicleId);
+                  final updatedVehicleNames = List<String>.from(_currentOperation.vehicleNames);
+                  if (vehicleIndex >= 0 && vehicleIndex < updatedVehicleNames.length) {
+                    updatedVehicleNames.removeAt(vehicleIndex);
+                  }
+                  
+                  final updatedAssignment = Map<String, Map<String, String>>.from(
+                    _currentOperation.vehiclePersonnelAssignment,
+                  )..remove(vehicleId);
+                  
+                  _currentOperation = Operation(
+                    id: _currentOperation.id,
+                    alarmstichwort: _currentOperation.alarmstichwort,
+                    adresseOrGps: _currentOperation.adresseOrGps,
+                    vehicleIds: updatedVehicleIds,
+                    vehicleNames: updatedVehicleNames,
+                    vehiclePersonnelAssignment: updatedAssignment,
+                    einsatzTime: _currentOperation.einsatzTime,
+                    protocol: _currentOperation.protocol,
+                    respiratoryActive: _currentOperation.respiratoryActive,
+                    atemschutzTrupps: _currentOperation.atemschutzTrupps,
+                    vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+                    externalVehicles: _currentOperation.externalVehicles,
+                  );
+                });
+                
+                _addProtocolEntry('Fahrzeug "${vehicle.funkrufname}" vom Einsatz entfernt');
+                
+                Navigator.pop(context);
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${vehicle.funkrufname} wurde entfernt'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Entfernen'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _removeExternalVehicle(String funkrufname) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Externes Fahrzeug entfernen'),
+          content: Text(
+            'Möchten Sie "$funkrufname" wirklich vom Einsatz entfernen?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  final updatedExternalVehicles = List<String>.from(_currentOperation.externalVehicles)
+                    ..remove(funkrufname);
+                  
+                  _currentOperation = Operation(
+                    id: _currentOperation.id,
+                    alarmstichwort: _currentOperation.alarmstichwort,
+                    adresseOrGps: _currentOperation.adresseOrGps,
+                    vehicleIds: _currentOperation.vehicleIds,
+                    vehicleNames: _currentOperation.vehicleNames,
+                    vehiclePersonnelAssignment: _currentOperation.vehiclePersonnelAssignment,
+                    einsatzTime: _currentOperation.einsatzTime,
+                    protocol: _currentOperation.protocol,
+                    respiratoryActive: _currentOperation.respiratoryActive,
+                    atemschutzTrupps: _currentOperation.atemschutzTrupps,
+                    vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+                    externalVehicles: updatedExternalVehicles,
+                  );
+                });
+                
+                _addProtocolEntry('Externes Fahrzeug "$funkrufname" vom Einsatz entfernt');
+                
+                Navigator.pop(context);
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('$funkrufname wurde entfernt'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Entfernen'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditPersonnelDialog(String vehicleId, String vehicleName) {
+    final personnelNotifier = context.read<PersonnelNotifier>();
+    final vehicleNotifier = context.read<VehicleNotifier>();
+    final vehicle = vehicleNotifier.vehicleList.firstWhere((v) => v.id == vehicleId);
+    
+    final currentAssignment = Map<String, String>.from(
+      _currentOperation.vehiclePersonnelAssignment[vehicleId] ?? {},
+    );
+    
+    // Invertiere die Zuordnung: position -> personelId
+    final Map<String, String> positionToPersonnel = {};
+    currentAssignment.forEach((personelId, position) {
+      positionToPersonnel[position] = personelId;
+    });
+    
+    // Berechne alle verfügbaren Positionen des Fahrzeugs
+    final List<String> allPositions = [];
+    allPositions.add('Maschinist');
+    if (vehicle.hasGroupLeader) allPositions.add('Gruppenführer');
+    if (vehicle.hasMessenger) allPositions.add('Melder');
+    
+    // Trupps mit Führer und Mann
+    for (int i = 0; i < vehicle.trupps.length; i++) {
+      final truppName = vehicle.trupps[i];
+      allPositions.add('$truppName Führer');
+      allPositions.add('$truppName Mann');
+    }
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Besatzung: $vehicleName'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Personal den Positionen zuweisen:',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      const SizedBox(height: 16),
+                      ...allPositions.map((position) {
+                        return _buildPositionEditBox(
+                          position,
+                          vehicleId,
+                          positionToPersonnel,
+                          personnelNotifier,
+                          setState,
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Abbrechen'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    // Konvertiere zurück: personelId -> position
+                    final newAssignment = <String, String>{};
+                    positionToPersonnel.forEach((pos, personelId) {
+                      newAssignment[personelId] = pos;
+                    });
+                    _updateVehiclePersonnel(vehicleId, vehicleName, newAssignment);
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Speichern'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPositionEditBox(
+    String position,
+    String vehicleId,
+    Map<String, String> positionToPersonnel,
+    PersonnelNotifier personnelNotifier,
+    StateSetter setState,
+  ) {
+    final currentPersonelId = positionToPersonnel[position];
+    final currentPerson = currentPersonelId != null
+        ? personnelNotifier.personnelList.firstWhere(
+            (p) => p.id == currentPersonelId,
+            orElse: () => PersonalData(
+              id: 'unknown',
+              name: 'Unbekannt',
+              email: '',
+              phone: '',
+              position: '',
+              dienstgrad: '',
+              lehrgaenge: [],
+            ),
+          )
+        : null;
+
+    // Sammle alle bereits zugewiesenen Personen-IDs über ALLE Fahrzeuge im Einsatz
+    final allAssignedPersonIds = <String>{};
+    _currentOperation.vehiclePersonnelAssignment.forEach((vId, assignment) {
+      // assignment ist Map<String, String> mit personId -> position
+      allAssignedPersonIds.addAll(assignment.keys);
+    });
+    
+    // Füge auch die lokalen Änderungen im aktuellen Dialog hinzu (positionToPersonnel)
+    // um zu verhindern, dass die gleiche Person mehrfach im selben Fahrzeug zugewiesen wird
+    allAssignedPersonIds.addAll(positionToPersonnel.values);
+    
+    // Nur Personen anzeigen, die noch keine Position haben (in keinem Fahrzeug)
+    // AUSSER die Person, die aktuell auf dieser Position ist
+    final availablePersonnel = personnelNotifier.personnelList.where((person) {
+      // Person ist verfügbar wenn sie nirgendwo zugewiesen ist ODER wenn sie auf dieser Position ist
+      return !allAssignedPersonIds.contains(person.id) || person.id == currentPersonelId;
+    }).toList();
+
+    // Verwende leeren String statt null für "keine Zuweisung"
+    final dropdownValue = currentPersonelId ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: currentPerson != null
+              ? Theme.of(context).colorScheme.primary
+              : Colors.grey.shade300,
+          width: currentPerson != null ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  position,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+              if (currentPerson != null)
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () {
+                    setState(() {
+                      positionToPersonnel.remove(position);
+                    });
+                  },
+                  tooltip: 'Entfernen',
+                  color: Colors.red,
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: dropdownValue,
+            decoration: InputDecoration(
+              hintText: 'Person auswählen',
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surface,
+            ),
+            items: [
+              const DropdownMenuItem<String>(
+                value: '',
+                child: Text('-- Keine Zuweisung --'),
+              ),
+              ...availablePersonnel.map((person) {
+                return DropdownMenuItem<String>(
+                  value: person.id,
+                  child: Text('${person.name} (${person.dienstgrad})'),
+                );
+              }),
+            ],
+            onChanged: (value) {
+              setState(() {
+                if (value == null || value.isEmpty) {
+                  positionToPersonnel.remove(position);
+                } else {
+                  positionToPersonnel[position] = value;
+                }
+              });
+            },
+          ),
+          if (currentPerson != null && currentPerson.id != 'unknown') ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    currentPerson.name,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  Text(
+                    '${currentPerson.dienstgrad} - ${currentPerson.position}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _updateVehiclePersonnel(
+    String vehicleId,
+    String vehicleName,
+    Map<String, String> newAssignment,
+  ) {
+    this.setState(() {
+      final updatedAssignment = Map<String, Map<String, String>>.from(
+        _currentOperation.vehiclePersonnelAssignment,
+      );
+      
+      if (newAssignment.isEmpty) {
+        updatedAssignment.remove(vehicleId);
+      } else {
+        updatedAssignment[vehicleId] = newAssignment;
+      }
+      
+      _currentOperation = Operation(
+        id: _currentOperation.id,
+        alarmstichwort: _currentOperation.alarmstichwort,
+        adresseOrGps: _currentOperation.adresseOrGps,
+        vehicleIds: _currentOperation.vehicleIds,
+        vehicleNames: _currentOperation.vehicleNames,
+        vehiclePersonnelAssignment: updatedAssignment,
+        einsatzTime: _currentOperation.einsatzTime,
+        protocol: _currentOperation.protocol,
+        respiratoryActive: _currentOperation.respiratoryActive,
+        atemschutzTrupps: _currentOperation.atemschutzTrupps,
+        vehicleBreathingApparatus: _currentOperation.vehicleBreathingApparatus,
+        externalVehicles: _currentOperation.externalVehicles,
+      );
+    });
+    
+    _addProtocolEntry('Besatzung von "$vehicleName" aktualisiert');
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Besatzung von $vehicleName wurde aktualisiert'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   void _startSecondRound(AtemschutzTrupp trupp) {

@@ -19,7 +19,7 @@ extension FirstWhereOrNullExt<T> on Iterable<T> {
 // Standardisierte Alarmstichworte
 const List<String> _standardAlarmstichworte = [
 'B0 - Kleinstbrand',
-'B1 - Brennend',
+'B1 - Brennt',
 'B2 - Wohnungsbrand',
 'B3 - Gebäudebrand',
 'B4 - Brand Industrie / Landwirtschaft',
@@ -481,12 +481,18 @@ class _OperationCreateScreenState extends State<OperationCreateScreen> {
           )
         : null;
 
+    // Sammle alle bereits zugewiesenen Personen-IDs über ALLE Fahrzeuge
+    final allAssignedPersonIds = <String>{};
+    _vehiclePersonnelAssignment.forEach((vId, vAssignment) {
+      allAssignedPersonIds.addAll(vAssignment.keys);
+    });
+    
     // Verfügbare Personen: nicht zugewiesen oder bereits in dieser Position
     // Deduplizierung nach ID um Duplikate zu vermeiden
     final seenIds = <String>{};
     final availablePersonnel = personnelNotifier.personnelList
         .where((person) {
-          final isAssigned = assignment.containsKey(person.id);
+          final isAssigned = allAssignedPersonIds.contains(person.id);
           final isInThisPosition = currentPersonelId == person.id;
           return !isAssigned || isInThisPosition;
         })
@@ -695,6 +701,7 @@ class _OperationCreateScreenState extends State<OperationCreateScreen> {
         respiratoryActive: false,
         atemschutzTrupps: const [],
         vehicleBreathingApparatus: const {},
+        externalVehicles: const [],
       );
 
       // TODO: Speichern des Einsatzes

@@ -200,6 +200,8 @@ class Operation {
   final List<AtemschutzTrupp> atemschutzTrupps;
   // vehicleId -> RespiratoryTrupp (deprecated, für Rückwärtskompatibilität)
   final Map<String, RespiratoryTrupp> vehicleBreathingApparatus;
+  // Liste externer Fahrzeuge (nur Funkrufnamen, ohne Personal)
+  final List<String> externalVehicles;
 
   Operation({
     this.id,
@@ -213,6 +215,7 @@ class Operation {
     this.respiratoryActive = false,
     this.atemschutzTrupps = const [],
     this.vehicleBreathingApparatus = const {},
+    this.externalVehicles = const [],
   });
 
   Map<String, dynamic> toJson() {
@@ -232,6 +235,7 @@ class Operation {
       'vehicleBreathingApparatus': vehicleBreathingApparatus.map(
         (key, value) => MapEntry(key, value.toJson()),
       ),
+      'externalVehicles': externalVehicles,
     };
   }
 
@@ -280,6 +284,7 @@ class Operation {
           ),
         ),
       ),
+      externalVehicles: List<String>.from(json['externalVehicles'] ?? []),
     );
   }
 }
