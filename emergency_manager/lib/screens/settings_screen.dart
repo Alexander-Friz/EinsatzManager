@@ -7,6 +7,7 @@ import '../providers/equipment_notifier.dart';
 import '../providers/message_notifier.dart';
 import '../services/data_export_service.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -18,15 +19,30 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isExporting = false;
   bool _isImporting = false;
+  bool _developerOptionsEnabled = false;
+
   @override
   void initState() {
     super.initState();
+    _loadDeveloperOptions();
     // Überprüfe den Schedule beim Laden
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<ThemeNotifier>().updateScheduleIfNeeded();
       }
     });
+  }
+
+  Future<void> _loadDeveloperOptions() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _developerOptionsEnabled = prefs.getBool('developer_options_enabled') ?? false;
+    });
+  }
+
+  Future<void> _saveDeveloperOptions(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('developer_options_enabled', value);
   }
 
   @override
@@ -113,39 +129,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(height: 32),
-          // Daten-Management Sektion
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              'Datenverwaltung',
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
+          // Entwickleroptionen Switch
+          _buildSwitchTile(
+            context,
+            icon: Icons.developer_mode,
+            title: 'Entwickleroptionen',
+            subtitle: 'Erweiterte Funktionen aktivieren',
+            value: _developerOptionsEnabled,
+            onChanged: (value) {
+              setState(() {
+                _developerOptionsEnabled = value;
+              });
+              _saveDeveloperOptions(value);
+            },
+          ),
+          // Daten-Management Sektion (nur wenn Entwickleroptionen aktiviert)
+          if (_developerOptionsEnabled) ...[
+            const Divider(height: 32),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Datenverwaltung',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ),
-          _buildSettingsTile(
-            context,
-            icon: Icons.upload_file,
-            title: 'Daten exportieren',
-            subtitle: 'Backup aller Daten erstellen',
-            onTap: _isExporting ? () {} : () => _showExportOptions(),
-          ),
-          _buildSettingsTile(
-            context,
-            icon: Icons.download,
-            title: 'Daten importieren',
-            subtitle: 'Backup wiederherstellen',
-            onTap: _isImporting ? () {} : () => _importData(),
-          ),
-          _buildSettingsTile(
-            context,
-            icon: Icons.delete_forever,
-            title: 'Alle Daten löschen',
-            subtitle: 'App zurücksetzen (mit Vorsicht!)',
-            onTap: () => _showDeleteConfirmation(),
-          ),
+            _buildSettingsTile(
+              context,
+              icon: Icons.upload_file,
+              title: 'Daten exportieren',
+              subtitle: 'Backup aller Daten erstellen',
+              onTap: _isExporting ? () {} : () => _showExportOptions(),
+            ),
+            _buildSettingsTile(
+              context,
+              icon: Icons.download,
+              title: 'Daten importieren',
+              subtitle: 'Backup wiederherstellen',
+              onTap: _isImporting ? () {} : () => _importData(),
+            ),
+            _buildSettingsTile(
+              context,
+              icon: Icons.delete_forever,
+              title: 'Alle Daten löschen',
+              subtitle: 'App zurücksetzen (mit Vorsicht!)',
+              onTap: () => _showDeleteConfirmation(),
+            ),
+          ],
         ],
       ),
     );
@@ -485,17 +518,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       
       if (doubleConfirmed == true && mounted) {
+        // Zeige Loading-Anzeige
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+        
         final success = await DataExportService.clearAllData();
         
         if (success && mounted) {
-          // Lade alle Provider neu (jetzt leer)
-          await context.read<ArchiveNotifier>().loadArchivedOperations();
-          await context.read<PersonnelNotifier>().loadPersonnel();
-          await context.read<VehicleNotifier>().loadVehicles();
-          await context.read<EquipmentNotifier>().loadEquipment();
-          await context.read<MessageNotifier>().loadMessages();
+          // Leere alle Provider direkt (ohne Standarddaten zu laden)
+          try {
+            final archiveNotifier = context.read<ArchiveNotifier>();
+            final personnelNotifier = context.read<PersonnelNotifier>();
+            final vehicleNotifier = context.read<VehicleNotifier>();
+            final equipmentNotifier = context.read<EquipmentNotifier>();
+            final messageNotifier = context.read<MessageNotifier>();
+            
+            // Lösche die Listen direkt in den Notifiern
+            archiveNotifier.clearAll();
+            personnelNotifier.clearAll();
+            vehicleNotifier.clearAll();
+            equipmentNotifier.clearAll();
+            messageNotifier.clearAll();
+          } catch (e) {
+            print('Fehler beim Leeren der Provider: $e');
+          }
           
+          // Schließe Loading-Dialog
           if (mounted) {
+            Navigator.pop(context);
+            
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Alle Daten wurden gelöscht'),
@@ -504,6 +560,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             );
           }
+        } else if (mounted) {
+          // Schließe Loading-Dialog
+          Navigator.pop(context);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Fehler beim Löschen der Daten'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       }
     }
@@ -547,7 +613,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required IconData icon,
     required String title,
     required String subtitle,
+    bool? value,
+    Function(bool)? onChanged,
   }) {
+    // Wenn value und onChanged angegeben sind, verwende diese
+    if (value != null && onChanged != null) {
+      return ListTile(
+        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        trailing: Switch(
+          value: value,
+          onChanged: onChanged,
+        ),
+      );
+    }
+    
+    // Sonst verwende ThemeNotifier für Dark Mode
     return Consumer<ThemeNotifier>(
       builder: (context, themeNotifier, child) {
         return ListTile(

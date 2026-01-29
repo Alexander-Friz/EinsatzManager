@@ -125,143 +125,10 @@ class PersonnelNotifier extends ChangeNotifier {
           .map((item) => PersonalData.fromJson(item as Map<String, dynamic>))
           .toList();
     } else {
-      // Standard-Daten wenn keine gespeichert
-      _personnelList = [
-        PersonalData(
-          id: '1',
-          name: 'Max Müller',
-          email: 'max.mueller@feuerwehr.de',
-          phone: '0123 456789',
-          position: 'Brandmeister',
-          dienstgrad: 'Hauptbrandmeister',
-          lehrgaenge: ['Truppmann', 'Truppführer', 'Atemschutzgeräteträger'],
-          geburtstag: DateTime(1985, 6, 15),
-          g263Datum: DateTime.now().subtract(const Duration(days: 30)),
-          untersuchungAblaufdatum: DateTime.now().add(const Duration(days: 100)),
-          inaktivAgt: false,
-        ),
-        PersonalData(
-          id: '2',
-          name: 'Anna Schmidt',
-          email: 'anna.schmidt@feuerwehr.de',
-          phone: '0123 456790',
-          position: 'Feuerwehrfrau',
-          dienstgrad: 'Oberbrandmeisterin',
-          lehrgaenge: ['Truppmann', 'Atemschutzgeräteträger'],
-          geburtstag: DateTime(1992, 3, 22),
-          g263Datum: null,
-          untersuchungAblaufdatum: null,
-          inaktivAgt: false,
-        ),
-        PersonalData(
-          id: '3',
-          name: 'Peter Hoffmann',
-          email: 'peter.hoffmann@feuerwehr.de',
-          phone: '0123 456791',
-          position: 'Feuerwehrmann',
-          dienstgrad: 'Hauptfeuerwehrmann',
-          lehrgaenge: ['Truppmann', 'Truppführer', 'Kettensägen-Lehrgang'],
-          geburtstag: DateTime(1988, 11, 8),
-          g263Datum: null,
-          untersuchungAblaufdatum: null,
-          inaktivAgt: false,
-        ),
-        PersonalData(
-          id: '4',
-          name: 'Sandra Bauer',
-          email: 'sandra.bauer@feuerwehr.de',
-          phone: '0123 456792',
-          position: 'Ausschuss',
-          dienstgrad: 'Brandmeister',
-          lehrgaenge: ['Truppmann', 'Truppführer', 'Atemschutzgeräteträger', 'Gruppenführer'],
-          geburtstag: DateTime(1990, 5, 17),
-          g263Datum: DateTime(2024, 1, 10),
-          untersuchungAblaufdatum: DateTime(2026, 1, 10),
-          inaktivAgt: false,
-        ),
-        PersonalData(
-          id: '5',
-          name: 'Klaus Meier',
-          email: 'klaus.meier@feuerwehr.de',
-          phone: '0123 456793',
-          position: 'Feuerwehrmann',
-          dienstgrad: 'Feuerwehrmann',
-          lehrgaenge: ['Truppmann'],
-          geburtstag: DateTime(2000, 9, 3),
-          g263Datum: null,
-          untersuchungAblaufdatum: null,
-          inaktivAgt: false,
-        ),
-        PersonalData(
-          id: '6',
-          name: 'Katharina Fischer',
-          email: 'katharina.fischer@feuerwehr.de',
-          phone: '0123 456794',
-          position: 'Kommandant',
-          dienstgrad: 'Leitender Hauptbrandmeister',
-          lehrgaenge: ['Truppmann', 'Truppführer', 'Atemschutzgeräteträger', 'Gruppenführer', 'Zugführer'],
-          geburtstag: DateTime(1980, 2, 28),
-          g263Datum: DateTime(2023, 8, 15),
-          untersuchungAblaufdatum: DateTime(2025, 8, 15),
-          inaktivAgt: false,
-        ),
-        PersonalData(
-          id: '7',
-          name: 'Thomas Wagner',
-          email: 'thomas.wagner@feuerwehr.de',
-          phone: '0123 456795',
-          position: 'Feuerwehrmann',
-          dienstgrad: 'Oberfeuerwehrmann',
-          lehrgaenge: ['Truppmann', 'Truppführer'],
-          geburtstag: DateTime(1995, 7, 21),
-          g263Datum: null,
-          untersuchungAblaufdatum: null,
-          inaktivAgt: false,
-        ),
-        PersonalData(
-          id: '8',
-          name: 'Julia Richter',
-          email: 'julia.richter@feuerwehr.de',
-          phone: '0123 456796',
-          position: 'Ausschuss',
-          dienstgrad: 'Oberlöschmeister',
-          lehrgaenge: ['Truppmann', 'Truppführer', 'Atemschutzgeräteträger', 'Verbandführer'],
-          geburtstag: DateTime(1987, 12, 14),
-          g263Datum: DateTime.now().subtract(const Duration(days: 60)),
-          untersuchungAblaufdatum: DateTime.now().add(const Duration(days: 70)),
-          inaktivAgt: false,
-        ),
-        PersonalData(
-          id: '9',
-          name: 'Robert König',
-          email: 'robert.koenig@feuerwehr.de',
-          phone: '0123 456797',
-          position: 'Stv. Kommandant',
-          dienstgrad: 'Oberbrandmeister',
-          lehrgaenge: ['Truppmann', 'Truppführer', 'Atemschutzgeräteträger', 'Gruppenführer', 'Zugführer'],
-          geburtstag: DateTime(1982, 4, 9),
-          g263Datum: DateTime(2024, 3, 20),
-          untersuchungAblaufdatum: DateTime(2026, 3, 20),
-          inaktivAgt: false,
-        ),
-        PersonalData(
-          id: '10',
-          name: 'Daniela Krämer',
-          email: 'daniela.kraemer@feuerwehr.de',
-          phone: '0123 456798',
-          position: 'Feuerwehrfrau',
-          dienstgrad: 'Löschmeister',
-          lehrgaenge: ['Truppmann', 'Truppführer', 'Atemschutzgeräteträger'],
-          geburtstag: DateTime(1993, 8, 5),
-          g263Datum: null,
-          untersuchungAblaufdatum: null,
-          inaktivAgt: false,
-        ),
-      ];
-      await _savePersonnel();
+      // Keine Daten vorhanden - Liste bleibt leer
+      _personnelList = [];
     }
     
-    _isLoaded = true;
     notifyListeners();
   }
 
@@ -290,5 +157,10 @@ class PersonnelNotifier extends ChangeNotifier {
       await _savePersonnel();
       notifyListeners();
     }
+  }
+
+  void clearAll() {
+    _personnelList.clear();
+    notifyListeners();
   }
 }

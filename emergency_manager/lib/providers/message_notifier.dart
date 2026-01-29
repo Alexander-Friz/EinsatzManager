@@ -111,9 +111,8 @@ class MessageNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> clearAll() async {
+  void clearAll() {
     _messages.clear();
-    await _saveMessages();
     notifyListeners();
   }
 

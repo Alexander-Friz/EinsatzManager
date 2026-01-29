@@ -61,4 +61,10 @@ class ArchiveNotifier extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  void clearAll() {
+    _archivedOperations.clear();
+    _isLoaded = true;
+    notifyListeners();
+  }
 }

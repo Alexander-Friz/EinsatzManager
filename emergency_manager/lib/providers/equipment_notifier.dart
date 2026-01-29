@@ -123,4 +123,10 @@ class EquipmentNotifier extends ChangeNotifier {
   List<Equipment> get expiredEquipment {
     return _equipmentList.where((equipment) => equipment.isInspectionExpired).toList();
   }
+
+  void clearAll() {
+    _equipmentList.clear();
+    _isLoaded = true;
+    notifyListeners();
+  }
 }

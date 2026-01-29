@@ -156,4 +156,10 @@ class VehicleNotifier extends ChangeNotifier {
   List<Vehicle> get vehiclesWithExpiredFeuerwehrTuev {
     return _vehicles.where((vehicle) => vehicle.isFeuerwehrTuevExpiredNow).toList();
   }
+
+  void clearAll() {
+    _vehicles.clear();
+    _isLoaded = true;
+    notifyListeners();
+  }
 }
