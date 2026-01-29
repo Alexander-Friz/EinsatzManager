@@ -704,7 +704,6 @@ class _OperationCreateScreenState extends State<OperationCreateScreen> {
         externalVehicles: const [],
       );
 
-      // TODO: Speichern des Einsatzes
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
