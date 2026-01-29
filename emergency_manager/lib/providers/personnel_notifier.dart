@@ -129,6 +129,7 @@ class PersonnelNotifier extends ChangeNotifier {
       _personnelList = [];
     }
     
+    _isLoaded = true;
     notifyListeners();
   }
 
@@ -161,6 +162,7 @@ class PersonnelNotifier extends ChangeNotifier {
 
   void clearAll() {
     _personnelList.clear();
+    _isLoaded = true;
     notifyListeners();
   }
 }

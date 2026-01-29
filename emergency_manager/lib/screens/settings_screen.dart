@@ -55,15 +55,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: ListView(
         children: [
-          _buildSettingsTile(
-            context,
-            icon: Icons.language,
-            title: 'Sprache',
-            subtitle: 'Deutsch',
-            onTap: () {
-              _showComingSoon(context, 'Sprache');
-            },
-          ),
           _buildSwitchTile(
             context,
             icon: Icons.brightness_6,
@@ -123,9 +114,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             context,
             icon: Icons.info,
             title: 'Über die App',
-            subtitle: 'Version 1.0.0',
+            subtitle: 'Version 2.1.0',
             onTap: () {
-              _showComingSoon(context, 'Über die App');
+              _showAboutDialog(context);
             },
           ),
           const Divider(height: 32),
@@ -668,6 +659,94 @@ class _SettingsScreenState extends State<SettingsScreen> {
       subtitle: Text(subtitle),
       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
       onTap: onTap,
+    );
+  }
+
+  void _showAboutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.emergency,
+              color: Theme.of(context).colorScheme.primary,
+              size: 32,
+            ),
+            const SizedBox(width: 12),
+            const Text('EinsatzManager'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Version 2.1.0',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
+            const Text(
+              'Hochschulprojekt',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  Icons.person,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Autor: Alexander Friz',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Erstellt: 2025',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 12),
+            Text(
+              'Eine App zur Verwaltung von Feuerwehreinsätzen mit Funktionen für Einsatzplanung, Personalverwaltung, Fahrzeug- und Ausrüstungsübersicht.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Schließen'),
+          ),
+        ],
+      ),
     );
   }
 

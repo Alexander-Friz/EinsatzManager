@@ -8,12 +8,15 @@ import '../providers/message_notifier.dart';
 
 const List<String> availableLehrgaenge = [
   'Truppmann',
+  'Sprechfunker',
   'Truppführer',
   'Atemschutzgeräteträger',
+  'Gefahrgutbeauftragter',
   'Gruppenführer',
   'Zugführer',
   'Verbandführer',
   'Kettensägen-Lehrgang',
+  'Sanitäter'
 ];
 
 const List<String> availableAmts = [

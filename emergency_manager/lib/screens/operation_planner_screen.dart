@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -2516,12 +2517,36 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
   }
 
   Future<void> _playShortAlertSound() async {
+    // Spiele Alarmton für 5 Sekunden
+    
+    // Erstelle einen separaten Player für den Alarm
+    final alarmPlayer = AudioPlayer();
+    
     try {
-      // Spiele einen kurzen Alarm-Ton für Druckabfragen ab
-      await _audioPlayer.play(AssetSource('sounds/alert.mp3'));
+      // Versuche zuerst, einen lokalen Asset-Sound abzuspielen
+      await alarmPlayer.setReleaseMode(ReleaseMode.loop);
+      await alarmPlayer.setVolume(1.0);
+      
+      // Versuche Asset zu laden (alarm.mp3)
+      await alarmPlayer.play(AssetSource('sounds/alarm.mp3'));
+      
+      // Warte 5 Sekunden
+      await Future.delayed(const Duration(seconds: 5));
+      
+      // Stoppe den Sound
+      await alarmPlayer.stop();
+      await alarmPlayer.dispose();
+      
     } catch (e) {
-      // Falls kein Sound-File vorhanden, spiele kurzen Beep als Fallback
-      await Future.delayed(const Duration(milliseconds: 100));
+      // Fallback: Verwende System-Sounds
+      debugPrint('Asset-Sound nicht gefunden, verwende System-Sound: $e');
+      await alarmPlayer.dispose();
+      
+      // Spiele 10 mal einen System-Sound (ca. 5 Sekunden)
+      for (int i = 0; i < 10; i++) {
+        await SystemSound.play(SystemSoundType.click);
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
     }
   }
 
