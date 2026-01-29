@@ -2210,6 +2210,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
           return t.copyWith(
             startTime: DateTime.now(),
             pausedDuration: Duration.zero,
+            startPressure: pressure,
             lowestPressure: pressure,
             isActive: true,
             isCompleted: false,
@@ -2719,6 +2720,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
           return t.copyWith(
             isActive: false,
             isCompleted: true,
+            endTime: DateTime.now(),
             lowestPressure: pressure,
           );
         }

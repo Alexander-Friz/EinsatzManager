@@ -39,7 +39,9 @@ class AtemschutzTrupp {
   final String person2Id; // ID der zweiten Person
   final DateTime createdAt; // Zeitstempel für Sortierung
   final DateTime? startTime; // Startzeitpunkt der Stoppuhr
+  final DateTime? endTime; // Endzeitpunkt des Einsatzes
   final Duration? pausedDuration; // Akkumulierte Pausenzeit
+  final int? startPressure; // Startdruck in bar
   final int? lowestPressure; // Niedrigster Druck in bar
   final bool isActive; // Ob die Stoppuhr läuft
   final bool pressure10MinChecked; // Ob Druckabfrage bei 10 Min erfolgt ist
@@ -55,7 +57,9 @@ class AtemschutzTrupp {
     DateTime? createdAt,
     String? id,
     this.startTime,
+    this.endTime,
     this.pausedDuration,
+    this.startPressure,
     this.lowestPressure,
     this.isActive = false,
     this.pressure10MinChecked = false,
@@ -78,7 +82,9 @@ class AtemschutzTrupp {
       'person2Id': person2Id,
       'createdAt': createdAt.toIso8601String(),
       'startTime': startTime?.toIso8601String(),
+      'endTime': endTime?.toIso8601String(),
       'pausedDuration': pausedDuration?.inSeconds,
+      'startPressure': startPressure,
       'lowestPressure': lowestPressure,
       'isActive': isActive,
       'pressure10MinChecked': pressure10MinChecked,
@@ -101,9 +107,13 @@ class AtemschutzTrupp {
       startTime: json['startTime'] != null
           ? DateTime.parse(json['startTime'] as String)
           : null,
+      endTime: json['endTime'] != null
+          ? DateTime.parse(json['endTime'] as String)
+          : null,
       pausedDuration: json['pausedDuration'] != null
           ? Duration(seconds: json['pausedDuration'] as int)
           : null,
+      startPressure: json['startPressure'] as int?,
       lowestPressure: json['lowestPressure'] as int?,
       isActive: json['isActive'] as bool? ?? false,
       pressure10MinChecked: json['pressure10MinChecked'] as bool? ?? false,
@@ -120,7 +130,9 @@ class AtemschutzTrupp {
     String? person2Id,
     DateTime? createdAt,
     DateTime? startTime,
+    DateTime? endTime,
     Duration? pausedDuration,
+    int? startPressure,
     int? lowestPressure,
     bool? isActive,
     bool? pressure10MinChecked,
@@ -136,7 +148,9 @@ class AtemschutzTrupp {
       person2Id: person2Id ?? this.person2Id,
       createdAt: createdAt ?? this.createdAt,
       startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
       pausedDuration: pausedDuration ?? this.pausedDuration,
+      startPressure: startPressure ?? this.startPressure,
       lowestPressure: lowestPressure ?? this.lowestPressure,
       isActive: isActive ?? this.isActive,
       pressure10MinChecked: pressure10MinChecked ?? this.pressure10MinChecked,

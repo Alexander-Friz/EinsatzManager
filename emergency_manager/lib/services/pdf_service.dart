@@ -9,6 +9,7 @@ class PdfService {
     required Map<int, int> operationsPerMonth,
     required Map<String, int> operationTypeStats,
     required Map<String, int> dayNightStats,
+    required Map<int, int> operationsByHour,
     required Map<String, int> trainingStats,
     required List<MapEntry<String, int>> topPersonnel,
     required int totalPersonnel,
@@ -111,6 +112,21 @@ class PdfService {
             ),
             pw.SizedBox(height: 10),
             _buildDayNightChart(dayNightStats),
+            pw.SizedBox(height: 20),
+
+            // Uhrzeiten-Statistik
+            pw.Header(
+              level: 1,
+              child: pw.Text(
+                'Einsätze nach Uhrzeit',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 10),
+            _buildHourBarChart(operationsByHour),
             pw.SizedBox(height: 20),
 
             // Ausbildungsstatistik
@@ -340,6 +356,64 @@ class PdfService {
           ),
         );
       }).toList(),
+    );
+  }
+
+  static pw.Widget _buildHourBarChart(Map<int, int> operationsByHour) {
+    final maxValue = operationsByHour.values.fold(0, (a, b) => a > b ? a : b);
+    final maxHeight = 140.0;
+
+    return pw.Container(
+      height: 180,
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.end,
+        mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+        children: operationsByHour.entries.map((entry) {
+          final hour = entry.key;
+          final count = entry.value;
+          final barHeight = maxValue > 0 ? (count / maxValue) * maxHeight : 0.0;
+          
+          // Farbe basierend auf Tages-/Nachtzeit
+          final barColor = (hour >= 22 || hour < 6) 
+              ? PdfColors.indigo700  // Nacht
+              : PdfColors.orange;     // Tag
+
+          return pw.Container(
+            width: 18,
+            margin: const pw.EdgeInsets.symmetric(horizontal: 1),
+            child: pw.Column(
+              mainAxisAlignment: pw.MainAxisAlignment.end,
+              children: [
+                if (count > 0)
+                  pw.Text(
+                    count.toString(),
+                    style: pw.TextStyle(
+                      fontSize: 6,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                pw.SizedBox(height: 2),
+                pw.Container(
+                  height: barHeight,
+                  decoration: pw.BoxDecoration(
+                    color: barColor,
+                    borderRadius: const pw.BorderRadius.vertical(
+                      top: pw.Radius.circular(2),
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 2),
+                pw.Text(
+                  hour.toString().padLeft(2, '0'),
+                  style: const pw.TextStyle(
+                    fontSize: 6,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 

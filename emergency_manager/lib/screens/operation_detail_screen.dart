@@ -5,6 +5,7 @@ import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import '../models/operation.dart';
 import '../providers/personnel_notifier.dart';
+import '../providers/vehicle_notifier.dart';
 import '../services/pdf_service.dart';
 import 'operation_edit_screen.dart';
 
@@ -541,6 +542,52 @@ class _OperationDetailScreenState extends State<OperationDetailScreen> {
   }
 
   Widget _buildAtemschutzTrupp(AtemschutzTrupp trupp) {
+    // Hole Personennamen und Fahrzeugnamen
+    final personnelNotifier = context.read<PersonnelNotifier>();
+    final vehicleNotifier = context.read<VehicleNotifier>();
+    
+    // Finde Person 1
+    final person1 = personnelNotifier.personnelList.firstWhere(
+      (p) => p.id == trupp.person1Id,
+      orElse: () => PersonalData(
+        id: trupp.person1Id,
+        name: 'Unbekannt',
+        email: '',
+        phone: '',
+        position: '',
+        dienstgrad: '',
+        lehrgaenge: [],
+      ),
+    );
+    
+    // Finde Person 2
+    final person2 = personnelNotifier.personnelList.firstWhere(
+      (p) => p.id == trupp.person2Id,
+      orElse: () => PersonalData(
+        id: trupp.person2Id,
+        name: 'Unbekannt',
+        email: '',
+        phone: '',
+        position: '',
+        dienstgrad: '',
+        lehrgaenge: [],
+      ),
+    );
+    
+    // Finde Fahrzeug (falls vorhanden)
+    String? vehicleName;
+    if (trupp.vehicleId != null) {
+      try {
+        final vehicle = vehicleNotifier.vehicleList.firstWhere(
+          (v) => v.id == trupp.vehicleId,
+        );
+        vehicleName = vehicle.funkrufname;
+      } catch (e) {
+        // Fahrzeug nicht gefunden
+        vehicleName = null;
+      }
+    }
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -601,9 +648,76 @@ class _OperationDetailScreenState extends State<OperationDetailScreen> {
             ],
           ),
           const SizedBox(height: 8),
+          // Zeige Fahrzeug an (falls vorhanden)
+          if (vehicleName != null) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.fire_truck,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Fahrzeug: $vehicleName',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+          // Zeige AGT-Träger an
+          Row(
+            children: [
+              Icon(
+                Icons.person,
+                size: 16,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'AGT 1: ${person1.name}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(
+                Icons.person,
+                size: 16,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'AGT 2: ${person2.name}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           if (trupp.startTime != null)
             Text(
               'Start: ${_formatDateTime(trupp.startTime!)}',
+              style: const TextStyle(fontSize: 12),
+            ),
+          if (trupp.startPressure != null)
+            Text(
+              'Startdruck: ${trupp.startPressure} bar',
               style: const TextStyle(fontSize: 12),
             ),
           if (trupp.lowestPressure != null)
@@ -611,10 +725,19 @@ class _OperationDetailScreenState extends State<OperationDetailScreen> {
               'Niedrigster Druck: ${trupp.lowestPressure} bar',
               style: const TextStyle(fontSize: 12),
             ),
-          if (trupp.pausedDuration != null && trupp.pausedDuration!.inSeconds > 0)
-            Text(
-              'Pausenzeit: ${trupp.pausedDuration!.inMinutes} Min',
-              style: const TextStyle(fontSize: 12),
+          if (trupp.startTime != null && trupp.endTime != null)
+            Builder(
+              builder: (context) {
+                final totalDuration = trupp.endTime!.difference(trupp.startTime!);
+                final pausedSeconds = trupp.pausedDuration?.inSeconds ?? 0;
+                final einsatzSeconds = totalDuration.inSeconds - pausedSeconds;
+                final minutes = einsatzSeconds ~/ 60;
+                final seconds = einsatzSeconds % 60;
+                return Text(
+                  'Einsatzzeit: $minutes:${seconds.toString().padLeft(2, '0')} Min',
+                  style: const TextStyle(fontSize: 12),
+                );
+              },
             ),
         ],
       ),

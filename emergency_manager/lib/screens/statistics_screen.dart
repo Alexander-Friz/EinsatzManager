@@ -83,6 +83,22 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return {'Tag (06:00-21:59)': dayCount, 'Nacht (22:00-05:59)': nightCount};
   }
 
+  Map<int, int> _getOperationsByHour(List<dynamic> operations) {
+    final hourCounts = <int, int>{};
+    for (int i = 0; i < 24; i++) {
+      hourCounts[i] = 0;
+    }
+
+    for (var operation in operations) {
+      if (operation.einsatzTime.year == _selectedYear) {
+        final hour = operation.einsatzTime.hour;
+        hourCounts[hour] = (hourCounts[hour] ?? 0) + 1;
+      }
+    }
+
+    return hourCounts;
+  }
+
   Map<String, int> _getPersonnelByTraining(List<dynamic> personnelList) {
     final trainingCounts = <String, int>{};
 
@@ -146,6 +162,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final operationsPerMonth = _getOperationsPerMonth(operations);
     final operationTypeStats = _getOperationTypeStats(operations);
     final dayNightStats = _getDayNightStats(operations);
+    final operationsByHour = _getOperationsByHour(operations);
     final trainingStats = _getPersonnelByTraining(personnel);
     final topPersonnel = _getTopPersonnel(operations, personnel);
 
@@ -155,6 +172,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         operationsPerMonth: operationsPerMonth,
         operationTypeStats: operationTypeStats,
         dayNightStats: dayNightStats,
+        operationsByHour: operationsByHour,
         trainingStats: trainingStats,
         topPersonnel: topPersonnel,
         totalPersonnel: personnel.length,
@@ -198,14 +216,117 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           final operationsPerMonth = _getOperationsPerMonth(operations);
           final operationTypeStats = _getOperationTypeStats(operations);
           final dayNightStats = _getDayNightStats(operations);
+          final operationsByHour = _getOperationsByHour(operations);
           final trainingStats = _getPersonnelByTraining(personnel);
           final topPersonnel = _getTopPersonnel(operations, personnel);
+          
+          final totalOperationsYear = operationsPerMonth.values.reduce((a, b) => a + b);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Jahresübersicht
+                Card(
+                  elevation: 4,
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        Column(
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              size: 40,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Jahr',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                            Text(
+                              _selectedYear.toString(),
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          height: 80,
+                          width: 1,
+                          color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.3),
+                        ),
+                        Column(
+                          children: [
+                            Icon(
+                              Icons.emergency,
+                              size: 40,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Gesamteinsätze',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                            Text(
+                              totalOperationsYear.toString(),
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          height: 80,
+                          width: 1,
+                          color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.3),
+                        ),
+                        Column(
+                          children: [
+                            Icon(
+                              Icons.people,
+                              size: 40,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Personal',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                            Text(
+                              personnel.length.toString(),
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
                 // Einsätze pro Monat
                 Card(
                   elevation: 4,
@@ -388,6 +509,44 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                               ),
                             ],
                           ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Einsätze nach Uhrzeit
+                Card(
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Einsätze nach Uhrzeit',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Jahr: $_selectedYear',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        if (operationsByHour.values.every((v) => v == 0))
+                          const Text('Keine Einsätze in diesem Jahr')
+                        else
+                          _buildHourBarChart(operationsByHour),
                       ],
                     ),
                   ),
@@ -626,6 +785,80 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         }).toList(),
       ),
     );
+  }
+
+  Widget _buildHourBarChart(Map<int, int> data) {
+    final maxValue = data.values.reduce((a, b) => a > b ? a : b);
+    final double maxHeight = maxValue > 0 ? maxValue.toDouble() : 1.0;
+
+    return SizedBox(
+      height: 240,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: 24 * 30.0, // 24 hours * 30 pixels per hour
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: data.entries.map((entry) {
+              final hour = entry.key;
+              final count = entry.value;
+              final barHeight = maxHeight > 0 ? (count / maxHeight) * 160 : 0.0;
+
+              return SizedBox(
+                width: 28,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      SizedBox(
+                        height: 20,
+                        child: count > 0
+                            ? Text(
+                                count.toString(),
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      Container(
+                        height: barHeight,
+                        decoration: BoxDecoration(
+                          color: _getHourColor(hour),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(3),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        hour.toString().padLeft(2, '0'),
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getHourColor(int hour) {
+    // Nacht (22-5): Dunkelblau/Indigo
+    if (hour >= 22 || hour < 6) {
+      return Colors.indigo;
+    }
+    // Tag (6-21): Orange/Gelb
+    return Colors.orange;
   }
 
   Widget _buildDayNightRow(
