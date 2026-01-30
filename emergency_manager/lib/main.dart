@@ -40,7 +40,7 @@ class EmergencyManagerApp extends StatelessWidget {
     return Consumer<ThemeNotifier>(
       builder: (context, themeNotifier, child) {
         return MaterialApp(
-          title: 'Feuerwehr Einsatzmanager',
+          title: 'FireManager',
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
               seedColor: Colors.red,
