@@ -66,26 +66,39 @@ class _OperationDetailScreenState extends State<OperationDetailScreen> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           if (widget.operation.protocol.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.picture_as_pdf),
-              onPressed: () => _exportProtocolToPdf(),
-              tooltip: 'Als PDF exportieren',
-              color: Colors.purple,
-            ),
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => OperationEditScreen(
-                    operation: widget.operation,
-                    operationIndex: widget.operationIndex,
-                  ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: FilledButton.icon(
+                icon: const Icon(Icons.picture_as_pdf),
+                label: const Text('PDF'),
+                onPressed: () => _exportProtocolToPdf(),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 ),
-              );
-            },
-            tooltip: 'Bearbeiten',
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: FilledButton.icon(
+              icon: const Icon(Icons.edit),
+              label: const Text('Bearbeiten'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => OperationEditScreen(
+                      operation: widget.operation,
+                      operationIndex: widget.operationIndex,
+                    ),
+                  ),
+                );
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              ),
+            ),
           ),
         ],
       ),

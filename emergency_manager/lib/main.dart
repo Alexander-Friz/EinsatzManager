@@ -17,19 +17,77 @@ import 'providers/equipment_notifier.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Erstelle Provider-Instanzen
+  final themeNotifier = ThemeNotifier();
+  final personnelNotifier = PersonnelNotifier();
+  final messageNotifier = MessageNotifier();
+  final vehicleNotifier = VehicleNotifier();
+  final archiveNotifier = ArchiveNotifier();
+  final equipmentNotifier = EquipmentNotifier();
+
+  // Lade alle Daten EINMAL beim App-Start
+  await Future.wait([
+    personnelNotifier.loadPersonnel(),
+    vehicleNotifier.loadVehicles(),
+    equipmentNotifier.loadEquipment(),
+    messageNotifier.loadMessages(),
+    archiveNotifier.loadArchivedOperations(),
+  ]);
+
+  // Prüfe auf abgelaufene Items
+  await _checkForExpiredItemsOnStartup(
+    messageNotifier,
+    personnelNotifier,
+    vehicleNotifier,
+    equipmentNotifier,
+  );
+  
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => ThemeNotifier()),
-        ChangeNotifierProvider(create: (context) => PersonnelNotifier()),
-        ChangeNotifierProvider(create: (context) => MessageNotifier()),
-        ChangeNotifierProvider(create: (context) => VehicleNotifier()),
-        ChangeNotifierProvider(create: (context) => ArchiveNotifier()),
-        ChangeNotifierProvider(create: (context) => EquipmentNotifier()),
+        ChangeNotifierProvider.value(value: themeNotifier),
+        ChangeNotifierProvider.value(value: personnelNotifier),
+        ChangeNotifierProvider.value(value: messageNotifier),
+        ChangeNotifierProvider.value(value: vehicleNotifier),
+        ChangeNotifierProvider.value(value: archiveNotifier),
+        ChangeNotifierProvider.value(value: equipmentNotifier),
       ],
       child: const EmergencyManagerApp(),
     ),
   );
+}
+
+Future<void> _checkForExpiredItemsOnStartup(
+  MessageNotifier messageNotifier,
+  PersonnelNotifier personnelNotifier,
+  VehicleNotifier vehicleNotifier,
+  EquipmentNotifier equipmentNotifier,
+) async {
+  // Prüfe Personal auf abgelaufene AGT-Untersuchungen
+  for (final person in personnelNotifier.personnelList) {
+    if (person.agtUntersuchungAbgelaufen) {
+      await messageNotifier.addAGTExaminationWarning(person.name);
+    }
+  }
+
+  // Prüfe Fahrzeuge auf abgelaufene TÜVs
+  for (final vehicle in vehicleNotifier.vehicleList) {
+    if (vehicle.isTuevExpiredNow) {
+      await messageNotifier.addTuevWarning(vehicle.funkrufname, 'TÜV');
+    }
+    if (vehicle.isFeuerwehrTuevExpiredNow) {
+      await messageNotifier.addTuevWarning(
+          vehicle.funkrufname, 'Feuerwehr-TÜV');
+    }
+  }
+
+  // Prüfe Geräte auf abgelaufene Prüfungen
+  for (final equipment in equipmentNotifier.equipmentList) {
+    if (equipment.isInspectionExpired) {
+      await messageNotifier.addEquipmentInspectionWarning(
+          equipment.name, equipment.number);
+    }
+  }
 }
 
 class EmergencyManagerApp extends StatelessWidget {
@@ -73,75 +131,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Lade alle Daten und prüfe auf abgelaufene Items
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _initializeAppData();
-      }
-    });
-  }
-
-  Future<void> _initializeAppData() async {
-    // Lade Personal
-    if (!mounted) return;
-    final personnelNotifier = context.read<PersonnelNotifier>();
-    await personnelNotifier.loadPersonnel();
-    
-    // Lade Fahrzeuge
-    if (!mounted) return;
-    final vehicleNotifier = context.read<VehicleNotifier>();
-    await vehicleNotifier.loadVehicles();
-
-    // Lade Geräte
-    if (!mounted) return;
-    final equipmentNotifier = context.read<EquipmentNotifier>();
-    await equipmentNotifier.loadEquipment();
-
-    // Lade Nachrichten
-    if (!mounted) return;
-    final messageNotifier = context.read<MessageNotifier>();
-    await messageNotifier.loadMessages();
-
-    // Prüfe auf abgelaufene Untersuchungen, TÜVs und Geräteprüfungen
-    if (!mounted) return;
-    await _checkForExpiredItems();
-  }
-
-  Future<void> _checkForExpiredItems() async {
-    final messageNotifier = context.read<MessageNotifier>();
-    final personnelNotifier = context.read<PersonnelNotifier>();
-    final vehicleNotifier = context.read<VehicleNotifier>();
-    final equipmentNotifier = context.read<EquipmentNotifier>();
-
-    // Prüfe Personal auf abgelaufene AGT-Untersuchungen
-    for (final person in personnelNotifier.personnelList) {
-      if (person.agtUntersuchungAbgelaufen) {
-        await messageNotifier.addAGTExaminationWarning(person.name);
-      }
-    }
-
-    // Prüfe Fahrzeuge auf abgelaufene TÜVs
-    for (final vehicle in vehicleNotifier.vehicleList) {
-      if (vehicle.isTuevExpiredNow) {
-        await messageNotifier.addTuevWarning(vehicle.funkrufname, 'TÜV');
-      }
-      if (vehicle.isFeuerwehrTuevExpiredNow) {
-        await messageNotifier.addTuevWarning(
-            vehicle.funkrufname, 'Feuerwehr-TÜV');
-      }
-    }
-
-    // Prüfe Geräte auf abgelaufene Prüfungen
-    for (final equipment in equipmentNotifier.equipmentList) {
-      if (equipment.isInspectionExpired) {
-        await messageNotifier.addEquipmentInspectionWarning(
-            equipment.name, equipment.number);
-      }
-    }
-  }
+  // Daten werden bereits in main() geladen - kein erneutes Laden nötig
 
   @override
   Widget build(BuildContext context) {

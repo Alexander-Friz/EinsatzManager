@@ -67,10 +67,13 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         toolbarHeight: 50,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add),
-            tooltip: 'Personal hinzufügen',
-            onPressed: () => _showPersonnelDialog(context, null, -1),
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: FilledButton.tonalIcon(
+              icon: const Icon(Icons.person_add),
+              label: const Text('Hinzufügen'),
+              onPressed: () => _showPersonnelDialog(context, null, -1),
+            ),
           ),
         ],
       ),
@@ -108,12 +111,17 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                       margin:
                           const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: ListTile(
-                        leading: person.imageBase64 != null
+                        leading: person.imageBase64 != null &&
+                                person.imageBase64!.isNotEmpty
                             ? CircleAvatar(
                                 radius: 28,
                                 backgroundImage: MemoryImage(
                                   base64Decode(person.imageBase64!),
                                 ),
+                                onBackgroundImageError: (exception, stackTrace) {
+                                  // Bei Fehler: Zeige Initialen
+                                  debugPrint('Fehler beim Laden des Bildes: $exception');
+                                },
                               )
                             : CircleAvatar(
                                 radius: 28,
@@ -404,7 +412,7 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
-                  if (imageBase64 != null)
+                  if (imageBase64 != null && imageBase64!.isNotEmpty)
                     Container(
                       height: 200,
                       width: double.infinity,
@@ -417,6 +425,19 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                         child: Image.memory(
                           base64Decode(imageBase64!),
                           fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                                  const SizedBox(height: 8),
+                                  Text('Bild konnte nicht geladen werden',
+                                      style: TextStyle(color: Colors.grey)),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),

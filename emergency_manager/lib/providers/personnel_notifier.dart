@@ -134,6 +134,8 @@ class PersonnelNotifier extends ChangeNotifier {
   }
 
   Future<void> _savePersonnel() async {
+    // Stelle sicher, dass SharedPreferences initialisiert ist
+    _prefs = await SharedPreferences.getInstance();
     final jsonList = _personnelList.map((person) => person.toJson()).toList();
     await _prefs.setString('personnel_list', jsonEncode(jsonList));
   }

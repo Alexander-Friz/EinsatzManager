@@ -691,6 +691,7 @@ class _OperationCreateScreenState extends State<OperationCreateScreen> {
       }
 
       final operation = Operation(
+        id: '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}',
         alarmstichwort: _alarmstichwoertController.text,
         adresseOrGps: _adresseController.text,
         vehicleIds: _selectedVehicleIds,

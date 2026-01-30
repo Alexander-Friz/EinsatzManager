@@ -435,23 +435,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // PDF Export Button - ganz oben
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _currentOperation.protocol.isEmpty
-                      ? null
-                      : () => _exportProtocolToPdf(),
-                  icon: const Icon(Icons.picture_as_pdf, size: 20),
-                  label: const Text('Protokoll als PDF drucken'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                    backgroundColor: Colors.purple,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey,
-                  ),
-                ),
-              ),
+              // PDF Export Button ist während des Einsatzes nicht verfügbar
               const SizedBox(height: 16),
               Text(
                 'Einsatzprotokoll',
@@ -554,7 +538,7 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                               '${entry.timestamp.day}.${entry.timestamp.month}.${entry.timestamp.year}',
                               style: Theme.of(context).textTheme.labelSmall,
                             ),
-                            if (entry.imageBase64 != null) ...[
+                            if (entry.imageBase64 != null && entry.imageBase64!.isNotEmpty) ...[
                               const SizedBox(height: 12),
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
@@ -563,6 +547,15 @@ class _OperationPlannerScreenState extends State<OperationPlannerScreen> {
                                   fit: BoxFit.contain,
                                   height: 250,
                                   width: double.infinity,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      height: 250,
+                                      color: Colors.grey[300],
+                                      child: const Center(
+                                        child: Icon(Icons.broken_image, size: 48),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ],

@@ -31,6 +31,18 @@ class _DeviceManagerScreenState extends State<DeviceManagerScreen> {
         title: const Text('Gerätewart'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         toolbarHeight: 50,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: FilledButton.tonalIcon(
+              icon: const Icon(Icons.add),
+              label: const Text('Hinzufügen'),
+              onPressed: () {
+                _showEquipmentDialog(context, null, -1);
+              },
+            ),
+          ),
+        ],
       ),
       body: Consumer<EquipmentNotifier>(
         builder: (context, equipmentNotifier, child) {
@@ -66,7 +78,7 @@ class _DeviceManagerScreenState extends State<DeviceManagerScreen> {
                       margin: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 8),
                       child: ListTile(
-                        leading: equipment.imageBase64 != null
+                        leading: equipment.imageBase64 != null && equipment.imageBase64!.isNotEmpty
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: Image.memory(
@@ -74,6 +86,13 @@ class _DeviceManagerScreenState extends State<DeviceManagerScreen> {
                                   width: 56,
                                   height: 56,
                                   fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(
+                                      Icons.construction,
+                                      color: Theme.of(context).colorScheme.primary,
+                                      size: 40,
+                                    );
+                                  },
                                 ),
                               )
                             : Icon(
@@ -131,10 +150,6 @@ class _DeviceManagerScreenState extends State<DeviceManagerScreen> {
                   },
                 );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showEquipmentDialog(context, null, -1),
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -214,7 +229,7 @@ class _DeviceManagerScreenState extends State<DeviceManagerScreen> {
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
-                    if (imageBase64 != null)
+                    if (imageBase64 != null && imageBase64!.isNotEmpty)
                       Container(
                         height: 200,
                         width: double.infinity,
@@ -227,6 +242,11 @@ class _DeviceManagerScreenState extends State<DeviceManagerScreen> {
                           child: Image.memory(
                             base64Decode(imageBase64!),
                             fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                              );
+                            },
                           ),
                         ),
                       ),

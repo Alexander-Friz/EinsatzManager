@@ -45,6 +45,18 @@ class _FleetScreenState extends State<FleetScreen> {
         title: const Text('Fuhrpark'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         toolbarHeight: 50,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: FilledButton.tonalIcon(
+              icon: const Icon(Icons.add),
+              label: const Text('Hinzufügen'),
+              onPressed: () {
+                _showVehicleDialog(context, null, -1);
+              },
+            ),
+          ),
+        ],
       ),
       body: Consumer<VehicleNotifier>(
         builder: (context, vehicleNotifier, child) {
@@ -80,7 +92,7 @@ class _FleetScreenState extends State<FleetScreen> {
                       margin:
                           const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: ListTile(
-                        leading: vehicle.imageBase64 != null
+                        leading: vehicle.imageBase64 != null && vehicle.imageBase64!.isNotEmpty
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: Image.memory(
@@ -88,6 +100,13 @@ class _FleetScreenState extends State<FleetScreen> {
                                   width: 56,
                                   height: 56,
                                   fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(
+                                      Icons.fire_truck,
+                                      color: Theme.of(context).colorScheme.primary,
+                                      size: 40,
+                                    );
+                                  },
                                 ),
                               )
                             : Icon(
@@ -159,12 +178,6 @@ class _FleetScreenState extends State<FleetScreen> {
                   },
                 );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showVehicleDialog(context, null, -1);
-        },
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -333,7 +346,7 @@ class _FleetScreenState extends State<FleetScreen> {
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
-                    if (imageBase64 != null)
+                    if (imageBase64 != null && imageBase64!.isNotEmpty)
                       Container(
                         height: 200,
                         width: double.infinity,
@@ -346,6 +359,11 @@ class _FleetScreenState extends State<FleetScreen> {
                           child: Image.memory(
                             base64Decode(imageBase64!),
                             fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                              );
+                            },
                           ),
                         ),
                       ),
