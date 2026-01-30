@@ -111,6 +111,7 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
                       margin:
                           const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: ListTile(
+                        onTap: () => _showPersonnelDetails(context, person),
                         leading: person.imageBase64 != null &&
                                 person.imageBase64!.isNotEmpty
                             ? CircleAvatar(
@@ -644,7 +645,7 @@ class _PersonnelScreenState extends State<PersonnelScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Mitarbeiterdetails'),
+          title: const Text('Personaldetails'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
